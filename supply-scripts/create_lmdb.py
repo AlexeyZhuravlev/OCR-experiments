@@ -20,7 +20,7 @@ class LmdbDatasetCreator:
 
     def close(self):
         """Dumps all non-written cache elements and closes DB"""
-        self.cache['num-samples'.encode()] = str(self.num_elements).encode()
+        self.cache["num-samples".encode()] = str(self.num_elements).encode()
         self._dump_cache()
         self.env.close()
 
@@ -30,7 +30,3 @@ class LmdbDatasetCreator:
                 txn.put(key, value)
         self.cache.clear()
 
-    def _dum_cache_impl(self):
-        with self.env.begin(write=True) as txn:
-            for key, value in self.cache.items():
-                txn.put(key, value)
