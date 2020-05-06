@@ -6,7 +6,7 @@ import codecs
 
 # ArT ~ 600MB
 MAP_SIZE = round(600 * 1024 * 1024)
-SYMBOLS = set(open(r"C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\AlphanumericWithPunct.txt").read())
+SYMBOLS = set(codecs.open(r"C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\AlphanumericWithPunct.txt", encoding="UTF-8").read())
 
 def convert_art(source_dir, target_db):
     elements_path = os.path.join(source_dir, "train_task2_labels.json")
