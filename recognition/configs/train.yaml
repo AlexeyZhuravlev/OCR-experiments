@@ -1,13 +1,22 @@
 data_registry:
   rootdir: C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled
 
-model_params:  # REQUIRED KEYWORD, model(s) parameters
+model_params:
   _key_value: False  # KEYWORD, if True, there may be several models and then they need to be wrapped in key-value.
 
-  model: ModelName  # REQUIRED KEYWORD, class name. The class itself will be constructed in the registry by this name.
-  # At this level, the parameters for __init__ of the model can be found, for example
-  arch: resnet18  # with this key, the model will be created as follows: `ModelName(arch=resnet18)`
-
+  model: MultiHeadOcrModel
+  vocab_path: C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\Sample\Vocab.txt
+  input_height: 64
+  feature_extractor_name: simple
+  feature_extractor_params:
+    output_channels: 256
+  heads_params:
+    ctc_head:
+      type: lstm_ctc
+      specific_params:
+        lstm_args:
+          hidden_size: 100
+          bidirectional: True
 
 args:  # REQUIRED KEYWORD, various arguments for Catalyst
   logdir: C:\Users\User\Documents\PhD-study\Logs
