@@ -1,5 +1,6 @@
 """
 Basic dataset classes for storing image bases for OCR
+Datasets return dict {"image": image, "string": string}
 """
 
 import random
@@ -8,6 +9,13 @@ import lmdb
 from torch.utils.data import Dataset, ConcatDataset, Subset
 from PIL import Image
 import numpy as np
+
+class DataItemKeys:
+    """
+    Keys, returned in dict by all dataset classes, to avoid misprints
+    """
+    IMAGE = "image"
+    STRING = "string"
 
 class LmdbDataset(Dataset):
     """
@@ -66,7 +74,7 @@ class LmdbDataset(Dataset):
             except IOError:
                 raise RuntimeError("Corrupted image for {}".format(index))
 
-        item = {"image": np.array(img), "string": label}
+        item = {DataItemKeys.IMAGE: np.array(img), DataItemKeys.STRING: label}
 
         return item
 
@@ -121,3 +129,23 @@ class HybridDataset(ConcatDataset):
         for dataset in self.datasets:
             if isinstance(dataset, DataSubsetProvider):
                 dataset.next_subset()
+
+class DatasetWithTransforms(Dataset):
+    """
+    Wraps any existing OCR dataset and image transforms function to apply when getting elements
+    """
+    def __init__(self, dataset, transforms):
+        self.dataset = dataset
+        self.tranforms = transforms
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        item = self.dataset[index]
+        image = item[DataItemKeys.IMAGE]
+
+        image = self.tranforms({"image": image})["image"]
+        item[DataItemKeys.IMAGE] = image
+
+        return item

@@ -8,7 +8,10 @@ class BaseLabelEncoding(ABC):
 
     def __init__(self, vocab_path, aux_tokens_front=0):
         """Gives aux_tokens_count elements in the front for encoding"""
-        separate_characters = codecs.open(vocab_path, encoding="utf-8").read()
+        vocab_file = codecs.open(vocab_path, encoding="utf-8")
+        separate_characters = vocab_file.read()
+        vocab_file.close()
+
         self.char_to_label = dict()
         self.label_to_char = dict()
         self.vocabulary_size = len(separate_characters)

@@ -1,7 +1,9 @@
 import collections
 from catalyst.dl import ConfigExperiment
-from data.dataset_registry import DatasetRegistry
+from data import DatasetRegistry, DatasetWithTransforms
 import albumentations as A
+
+from typing import Dict, List
 
 class OcrExperiment(ConfigExperiment):
 
@@ -11,17 +13,15 @@ class OcrExperiment(ConfigExperiment):
         data_registry_params = config["data_registry"]
         self.data_registry = DatasetRegistry(data_registry_params["rootdir"])
 
-    @staticmethod
-    def get_transforms():
-        return A.Normalize()
+    def get_transforms(self, stage: str, dataset: str, resize_params: Dict):
+        return None
 
-    def get_datasets(self, stage: str, **kwargs):
+    def get_datasets(self, stage: str, dataset_names: Dict, image_resize_params: Dict):
         datasets = collections.OrderedDict()
 
-        data_params = self.stages_config[stage]["data_params"]
-        train_dataset_key = data_params["train_key"]
-        valid_dataset_key = data_params["valid_key"]
-        datasets["train"] = self.data_registry.get(train_dataset_key)
-        datasets["valid"] = self.data_registry.get(valid_dataset_key)
+        for dataset, registry_key in dataset_names.items():
+            raw_dataset = self.data_registry.get(registry_key)
+            transforms = self.get_transforms(stage, dataset, image_resize_params)
+            datasets[dataset] = DatasetWithTransforms(raw_dataset, transforms)
 
         return datasets
