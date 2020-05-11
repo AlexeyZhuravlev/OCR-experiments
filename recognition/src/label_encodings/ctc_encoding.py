@@ -37,8 +37,8 @@ class CtcLabelEncoding(BaseLabelEncoding):
         Implementation of CTC greedy decoding here.
         Expects (L, B, C) input tensor consisting of B sequences of length L with C log_probs
         """
-        max_values = prediction.argmin(axis=-1)
-        length, batch_size = max_values.shape()
+        max_values = prediction.argmax(axis=-1)
+        length, batch_size = max_values.shape
         result = []
         for element in range(batch_size):
             current_str = ""
@@ -47,6 +47,6 @@ class CtcLabelEncoding(BaseLabelEncoding):
                 # Skip blanks and repeated symbols
                 if current_label != self.BLANK_TOKEN and \
                    (pos == 0 or current_label != max_values[pos - 1][element]):
-                    current_str += self.label_to_char[current_label]
+                    current_str += self.label_to_char[current_label.item()]
             result.append(current_str)
         return result

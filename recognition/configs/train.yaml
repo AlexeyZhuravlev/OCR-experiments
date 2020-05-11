@@ -27,12 +27,12 @@ args:
   logdir: *log_dir
   expdir: src
   seed: 42 
-  deterministic: True  # KEYWORD, whether to use deterministic CuDNN (Default is True)
-  benchmark: True  # KEYWORD, whether to use CuDNN benchmark
-  verbose: False  # KEYWORD, whether to display learning information on the console (Default is False)
+  deterministic: True
+  benchmark: True
+  verbose: True
 
-stages:  # REQUIRED KEYWORD, dictionary of all stages of Catalyst, for training and/or infer. Contain keywords with parameters that apply to all the stages, as well as the names of the stages
-  data_params:  # KEYWORD, parameters passed to `ConfigExperiment.get_datasets(...)` (for all the stages)
+stages: 
+  data_params:
     dataset_names:
       train: CAR_TRAIN
       valid: CAR_TEST
@@ -42,10 +42,9 @@ stages:  # REQUIRED KEYWORD, dictionary of all stages of Catalyst, for training 
       # Allowed images width range. Smaller images are padded to max_width on the right side
       min_width: 256
       max_width: 256
-    num_workers: 0  # KEYWORD, Number of parallel processes for DataLoader
-    drop_last: False  # KEYWORD, parameter for DataLoader (Default is False)
+    num_workers: 0
 
-  criterion_params:  # REQUIRED KEYWORD, parameters for the loss function
+  criterion_params:
     _key_value: True
     ctc:
       criterion: CTCLoss
@@ -56,25 +55,30 @@ stages:  # REQUIRED KEYWORD, dictionary of all stages of Catalyst, for training 
     lr: 0.001
     weight_decay: 0.0001
 
-  scheduler_params:  # REQUIRED KEYWORD, params for lr-scheduler
-    scheduler: StepLR  # REQUIRED KEYWORD, name of the lr-scheduler
-    step_size: 10
+  scheduler_params:
+    scheduler: StepLR
+    step_size: 1
     gamma: 0.3
 
-  train: # Training stage
+  train_stage: # Training stage
     data_params:
       batch_size: 32
     
     state_params:  # You can override any parameters for a particular stage, for example
       num_epochs: 3
-      main_metric: ctc_loss
-      minimize_metric: False  # REQUIRED KEYWORD, flag, should we minimize `main_metric`
-      valid_loader: valid  # KEYWORD, name of the loader by which the checkpoints will be taken
+      main_metric: char_acc
+      minimize_metric: False
+      valid_loader: valid
 
     callbacks_params: 
       encode_labels:
         callback: EncodeLabelsCallback
         encoder_name: ctc
+      decode_labels:
+        callback: DecodeLabelsCallback
+        encoder_name: ctc
+        input_key: ctc_head.logprobs
+        output_key: ctc_head.string
       #debug:
       #  callback: DebugCallback
       ctc_loss:
@@ -87,10 +91,11 @@ stages:  # REQUIRED KEYWORD, dictionary of all stages of Catalyst, for training 
         output_key:
           ctc_head.logprobs: log_probs
           ctc_head.logprobs_len: input_lengths
+      metrics:
+        callback: CharAccuracyCallback
+        prefix: char_acc
+        input_key: string
+        output_key: ctc_head.string
       optimizer:
         metric_key: ctc_loss
         callback: OptimizerCallback
-      scheduler:
-        callback: SchedulerCallback
-      saver:
-        callback: CheckpointCallback

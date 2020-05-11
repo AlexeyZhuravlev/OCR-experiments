@@ -1,12 +1,13 @@
+from typing import Dict, List
+
 import torch
 from torch import nn
 
-from typing import Dict, List
+from src.data import DataItemKeys
 
 from .feature_extraction import FACTORY as extractors_factory
 from .prediction_heads import FACTORY as heads_factory
 from .prediction_heads import OcrPredictionHead
-from ..data import DataItemKeys
 
 
 class MultiHeadOcrModel(nn.Module):

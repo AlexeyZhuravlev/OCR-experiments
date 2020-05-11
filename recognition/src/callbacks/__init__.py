@@ -1,2 +1,3 @@
 from .debug import DebugCallback
-from .encode_labels import EncodeLabelsCallback
+from .label_encoding import EncodeLabelsCallback, DecodeLabelsCallback
+from .metrics import CharAccuracyCallback
