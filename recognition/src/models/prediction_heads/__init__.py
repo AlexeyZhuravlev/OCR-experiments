@@ -1,3 +1,4 @@
+from .core import OcrPredictionHead
 from .lstm_ctc import LstmCtcPredictionHead
 from .factory import PredictionHeadsFactory
 

@@ -15,6 +15,7 @@ class DataItemKeys:
     Keys, returned in dict by all dataset classes, to avoid misprints
     """
     IMAGE = "image"
+    IMAGE_WIDTH = "image_width"
     STRING = "string"
 
 class LmdbDataset(Dataset):
@@ -74,7 +75,10 @@ class LmdbDataset(Dataset):
             except IOError:
                 raise RuntimeError("Corrupted image for {}".format(index))
 
-        item = {DataItemKeys.IMAGE: np.array(img), DataItemKeys.STRING: label}
+        item = {
+            DataItemKeys.IMAGE: np.array(img),
+            DataItemKeys.STRING: label
+        }
 
         return item
 
@@ -143,9 +147,9 @@ class DatasetWithTransforms(Dataset):
 
     def __getitem__(self, index):
         item = self.dataset[index]
-        image = item[DataItemKeys.IMAGE]
 
-        image = self.tranforms({"image": image})["image"]
+        image = self.tranforms(image=item[DataItemKeys.IMAGE])["image"]
         item[DataItemKeys.IMAGE] = image
+        item[DataItemKeys.IMAGE_WIDTH] = image.shape[2]
 
         return item

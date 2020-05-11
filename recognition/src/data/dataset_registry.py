@@ -5,14 +5,15 @@ All datasets, used for training and testing to incapsulate all paths to dataset 
 import os
 from torch.utils.data import ConcatDataset, Dataset
 from .dataset import LmdbDataset
+from typing import Dict
 
 class DatasetRegistry:
     """
     Registry for all dataset
     """
 
-    def __init__(self, data_root: str):
-        self.data_root = data_root
+    def __init__(self, params: Dict):
+        self.data_root = params["rootdir"]
         self.register = {}
         self._register_all_data()
 
