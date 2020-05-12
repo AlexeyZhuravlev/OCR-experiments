@@ -57,16 +57,19 @@ stages:
 
   scheduler_params:
     scheduler: StepLR
-    step_size: 1
-    gamma: 0.3
+    step_size: 3
+    gamma: 0.5
 
   train_stage: # Training stage
     data_params:
-      batch_size: 32
+      batch_size: 64
+      loaders_params:
+        train:
+          shuffle: True
     
     state_params:  # You can override any parameters for a particular stage, for example
-      num_epochs: 3
-      main_metric: char_acc
+      num_epochs: 9
+      main_metric: ctc.fragment_acc
       minimize_metric: False
       valid_loader: valid
 
@@ -92,10 +95,12 @@ stages:
           ctc_head.logprobs: log_probs
           ctc_head.logprobs_len: input_lengths
       metrics:
-        callback: CharAccuracyCallback
-        prefix: char_acc
-        input_key: string
+        callback: OcrMetricsCallback
+        prefix: ctc
         output_key: ctc_head.string
       optimizer:
         metric_key: ctc_loss
         callback: OptimizerCallback
+      scheduler:
+        callback: SchedulerCallback
+        mode: epoch

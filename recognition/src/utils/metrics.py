@@ -1,46 +1,59 @@
 """
-Metric functions used during training and evaluation
+Metric functions used for model evaluaion
 """
 
+from typing import List
 import editdistance
 
-class BatchStringMetric:
+class OcrMetrics:
     """
-    Wraps any string metric function to be calculated on batch level
+    Main class for predictions registration and metrics accumulation
     """
-    def __init__(self, metric_fn):
-        self.metric_fn = metric_fn
+    CHAR_ACCURACY_KEY = "char_acc"
+    FRAGMENT_ACCURACY_KEY = "fragment_acc"
 
-    def __call__(self, first_batch, second_batch):
-        assert len(first_batch) == len(second_batch)
+    def __init__(self):
+        self.reset_counters()
 
-        score = 0.0
-        for first, second in zip(first_batch, second_batch):
-            score += self.metric_fn(first, second)
+    def reset_counters(self):
+        """
+        Resets counters and prepare for new metric calculations
+        """
+        self.total_fragments = 0
+        self.correct_fragments = 0
+        self.total_ned = 0
 
-        #print(first_batch[0])
-        #print(second_batch[0])
+    def add_batch(self, prediction_strings: List[str], groundtruth_strings: List[str]):
+        """
+        Register batch of samples
+        """
+        assert len(prediction_strings) == len(groundtruth_strings)
 
-        return score / len(first_batch)
+        for prediction, groundtruth in zip(prediction_strings, groundtruth_strings):
+            self.add_sample(prediction, groundtruth)
 
-@BatchStringMetric
-def fragment_accuracy(first_str: str, second_str: str) -> float:
-    """
-    Calculate number of total string matches
-    """
-    return float(first_str == second_str)
+    def add_sample(self, prediction: str, groundtruth: str):
+        """
+        Register single sample
+        """
+        self.total_fragments += 1
 
-@BatchStringMetric
-def character_accuracy(first_str: str, second_str: str) -> float:
-    """
-    Use 1 - N.E.D from ICDAR 2019 RRC competitions
-    https://rrc.cvc.uab.es/?ch=14&com=tasks
-    1 - dist(s,t)/max(len(s), len(t))
-    """
-    if first_str == "" and second_str == "":
-        return 1.0
+        if prediction == groundtruth:
+            self.correct_fragments += 1
+        distance = editdistance.eval(prediction, groundtruth)
+        norm_distance = distance / max(len(prediction), len(groundtruth))
+        self.total_ned += norm_distance
 
-    distance = editdistance.eval(first_str, second_str)
-    norm_distance = distance / max(len(first_str), len(second_str))
+    def get_metrics(self):
+        """
+        Return accumulated metric values as a dictionary
+        """
+        fragment_accuracy = self.correct_fragments / self.total_fragments
+        character_accuracy = 1. - self.total_ned / self.total_fragments
 
-    return 1.0 - norm_distance
+        result = {
+            self.CHAR_ACCURACY_KEY: character_accuracy,
+            self.FRAGMENT_ACCURACY_KEY: fragment_accuracy
+        }
+
+        return result

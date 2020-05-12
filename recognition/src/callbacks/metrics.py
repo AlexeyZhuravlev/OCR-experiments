@@ -1,26 +1,31 @@
 from catalyst.core.callbacks.metrics import MetricCallback
-from src.utils.metrics import fragment_accuracy, character_accuracy
+from src.utils.metrics import OcrMetrics
+from src.data import DataItemKeys
 
-class FragmentAccuracyCallback(MetricCallback):
+class OcrMetricsCallback(MetricCallback):
     """
     Amount of correctly-classified fragments
     """
-    def __init__(self, prefix: str, input_key: str, output_key: str):
+    def __init__(self, prefix: str, output_key: str, input_key: str = DataItemKeys.STRING):
         super().__init__(
             prefix=prefix,
-            metric_fn=fragment_accuracy,
+            metric_fn=None,
             input_key=input_key,
-            output_key=output_key,
-            multiplier=1.0)
+            output_key=output_key)
 
-class CharAccuracyCallback(MetricCallback):
-    """
-    Average 1 - N.E.D
-    """
-    def __init__(self, prefix: str, input_key: str, output_key: str):
-        super().__init__(
-            prefix=prefix,
-            metric_fn=character_accuracy,
-            input_key=input_key,
-            output_key=output_key
-        )
+        self.metrics = OcrMetrics()
+
+    def on_loader_start(self, state):
+        self.metrics.reset_counters()
+
+    def on_batch_end(self, state):
+        groundtruth = state.input[self.input_key]
+        recognized = state.output[self.output_key]
+
+        self.metrics.add_batch(recognized, groundtruth)
+
+    def on_loader_end(self, state):
+        values = self.metrics.get_metrics()
+        for key, value in values.items():
+            output_key = "{}.{}".format(self.prefix, key)
+            state.loader_metrics[output_key] = value
