@@ -24,17 +24,20 @@ class OcrRunner(SupervisedRunner):
     def forward(self, batch: Mapping[str, Any], **kwargs) -> Mapping[str, Any]:
         model_input = {
             DataItemKeys.IMAGE: batch[DataItemKeys.IMAGE],
-            DataItemKeys.IMAGE_WIDTH: batch[DataItemKeys.IMAGE_WIDTH]
+            DataItemKeys.IMAGE_WIDTH: batch[DataItemKeys.IMAGE_WIDTH],
+            AdditionalDataKeys.HEADS_ADDITIONAL_DATA: {}
         }
 
+        # Update additional data here
         if self.attention_heads:
-            attention_heads_data = self._get_attention_heads_input(batch, model_input)
-            model_input[AdditionalDataKeys.HEADS_ADDITIONAL_DATA] = attention_heads_data
+            attention_heads_data = self._get_attention_heads_input(batch)
+            model_input[AdditionalDataKeys.HEADS_ADDITIONAL_DATA].update(attention_heads_data)
+
         output = self.model(model_input, **kwargs)
 
         return output
 
-    def _get_attention_heads_input(self, batch, model_input):
+    def _get_attention_heads_input(self, batch):
         # Add teacher forcing labels during training and None with target length othervise
         if self.state.is_train_loader:
             labels = batch[self.attention_labels_key]

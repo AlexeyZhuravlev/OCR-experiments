@@ -96,6 +96,11 @@ class RnnAttentionDecoder(nn.Module):
         return result
 
 class RnnAttentionHead(OcrPredictionHead):
+    """
+    Attention head based on LSTM encoder and LSTM decoder
+    """
+    # Keys in result dictionary
+    LOG_PROBS_KEY = "logprobs"
 
     def __init__(self, base_params, encoder_lstm_args, decoder_hidden_size, embedding_size):
         super().__init__(**base_params)
@@ -107,8 +112,8 @@ class RnnAttentionHead(OcrPredictionHead):
 
     def forward(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         features = data[self.FEATURES_KEY]
-        teacher_forcing_labels = data[self.TEACHER_FORCING_LABELS_KEY]
-        num_steps = data[self.ATTENTION_NUM_STEPS_KEY]
+        teacher_forcing_labels = data[AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY]
+        num_steps = data[AdditionalDataKeys.ATTENTION_NUM_STEPS_KEY]
 
         batch, channels, height, width = features.shape
         assert height == self.input_height
@@ -116,6 +121,9 @@ class RnnAttentionHead(OcrPredictionHead):
 
         features = features.view(batch, channels * height, width)
         features = features.permute(0, 2, 1)
-        self.encoded = self.encoder(features, teacher_forcing_labels)
+        features_encoded = self.encoder(features)
+        probabilities = self.decoder(features_encoded, teacher_forcing_labels, num_steps)
 
-        
+        return {
+            self.LOG_PROBS_KEY: probabilities
+        }
