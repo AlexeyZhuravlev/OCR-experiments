@@ -4,6 +4,7 @@ import torch
 from torch import nn
 
 from src.data import DataItemKeys
+from src.runner import AdditionalDataKeys
 
 from .feature_extraction import FACTORY as extractors_factory
 from .prediction_heads import FACTORY as heads_factory
@@ -56,6 +57,8 @@ class MultiHeadOcrModel(nn.Module):
             OcrPredictionHead.FEATURES_KEY: features,
             OcrPredictionHead.FEATURES_WIDTH_KEY: features_width
         }
+
+        head_input_data.update(data[AdditionalDataKeys.HEADS_ADDITIONAL_DATA])
 
         result = {}
         for head_key, head in self.prediction_heads.items():

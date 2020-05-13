@@ -1,7 +1,7 @@
 SharedParams:
   - &vocab_path C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\Sample\Vocab.txt
   - &data_root C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled 
-  - &log_dir C:\Users\User\Documents\PhD-study\Logs
+  - &log_dir C:\Users\User\Documents\PhD-study\Logs\sample-baseline
   - &image_height 64
 
 vocab: *vocab_path
@@ -20,7 +20,7 @@ model_params:
       type: lstm_ctc
       specific_params:
         lstm_args:
-          hidden_size: 100
+          hidden_size: 128
           bidirectional: True
 
 args:
@@ -63,9 +63,6 @@ stages:
   train_stage: # Training stage
     data_params:
       batch_size: 64
-      loaders_params:
-        train:
-          shuffle: True
     
     state_params:  # You can override any parameters for a particular stage, for example
       num_epochs: 9
@@ -74,16 +71,10 @@ stages:
       valid_loader: valid
 
     callbacks_params: 
+      # Training
       encode_labels:
         callback: EncodeLabelsCallback
         encoder_name: ctc
-      decode_labels:
-        callback: DecodeLabelsCallback
-        encoder_name: ctc
-        input_key: ctc_head.logprobs
-        output_key: ctc_head.string
-      #debug:
-      #  callback: DebugCallback
       ctc_loss:
         callback: CriterionCallback
         prefix: ctc_loss
@@ -94,13 +85,19 @@ stages:
         output_key:
           ctc_head.logprobs: log_probs
           ctc_head.logprobs_len: input_lengths
-      metrics:
-        callback: OcrMetricsCallback
-        prefix: ctc
-        output_key: ctc_head.string
       optimizer:
         metric_key: ctc_loss
         callback: OptimizerCallback
       scheduler:
         callback: SchedulerCallback
         mode: epoch
+      # Evaluation
+      decode_labels:
+        callback: DecodeLabelsCallback
+        encoder_name: ctc
+        input_key: ctc_head.logprobs
+        output_key: ctc_head.string
+      metrics:
+        callback: OcrMetricsCallback
+        prefix: ctc
+        output_key: ctc_head.string

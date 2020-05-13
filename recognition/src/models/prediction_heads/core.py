@@ -11,7 +11,6 @@ class OcrPredictionHead(ABC, nn.Module):
     # Effective width (excluding padding) of extracted features of shape (B,)
     FEATURES_WIDTH_KEY = "features_width"
 
-
     def __init__(self, vocab_size: int, input_height: int, input_channels: int):
         super().__init__()
 
