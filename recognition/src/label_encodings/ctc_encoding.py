@@ -15,8 +15,6 @@ class CtcLabelEncoding(BaseLabelEncoding):
     def __init__(self, vocab):
         super().__init__(vocab, aux_tokens_front=1)
 
-        self.expected_output_channels = self.vocabulary_size + 1
-
     def encode_targets(self, strings: List[str]) -> Dict[str, torch.Tensor]:
         """Concatenates all targets and return their labels with lengths"""
         total_length = len("".join(strings))
@@ -43,10 +41,10 @@ class CtcLabelEncoding(BaseLabelEncoding):
         for element in range(batch_size):
             current_str = ""
             for pos in range(length):
-                current_label = max_values[pos][element]
+                current_label = max_values[pos][element].item()
                 # Skip blanks and repeated symbols
                 if current_label != self.BLANK_TOKEN and \
-                   (pos == 0 or current_label != max_values[pos - 1][element]):
-                    current_str += self.label_to_char[current_label.item()]
+                   (pos == 0 or current_label != max_values[pos - 1][element].item()):
+                    current_str += self.label_to_char[current_label]
             result.append(current_str)
         return result

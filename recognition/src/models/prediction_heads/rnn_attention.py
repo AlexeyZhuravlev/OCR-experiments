@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from .core import OcrPredictionHead
 from src.runner import AdditionalDataKeys
 
+# TODO: Fully-check and debug this cell!!!
 class AttentionCell(nn.Module):
     """
     Attention cell implementation: evaluating hidden size at each time step
@@ -38,7 +39,7 @@ class AttentionCell(nn.Module):
         # context vector: batch_size x input_size
         context = torch.bmm(alpha.permute(0, 2, 1), batch_h).squeeze(1)
         # batch_size x (num_channel + num_embedding)
-        concat_context = torch.cat([context, char_onehots], 1)
+        concat_context = torch.cat([context, prev_token], 1)
         cur_hidden = self.rnn(concat_context, prev_hidden)
         return cur_hidden
 
@@ -65,16 +66,16 @@ class RnnAttentionDecoder(nn.Module):
         input:
             context_features hidden state of encoder (batch_size x seq_len x input_size)
             teacher_forcing_labels : [num_steps x batch_size]. Can be None, i.e. on inference
-        output: log probability distribution at each step [num_steps x batch_size x num_classes]
+        output: logits at each step [num_steps x batch_size x num_classes]
         """
         batch_size = context_features.size(0)
-        device = context_features.device()
+        device = context_features.device
 
         # LSTM initial hidden state and cell
         prev_hidden = (torch.zeros(batch_size, self.hidden_size).to(device),
                        torch.zeros(batch_size, self.hidden_size).to(device))
         # Start from SOS token
-        prev_token = torch.LongTensor(batch_size).fill(self.sos_token).to(device)
+        prev_token = torch.LongTensor(batch_size).fill_(self.sos_token).to(device)
 
         result = torch.zeros(num_steps, batch_size, self.output_size)
 
@@ -88,26 +89,31 @@ class RnnAttentionDecoder(nn.Module):
             result[i] = F.log_softmax(current_logits, dim=-1)
 
             prev_hidden = current_hidden
-            if teacher_forcing_labels:
-                prev_token = teacher_forcing_labels[i]
-            else:
+            if teacher_forcing_labels is None:
                 prev_token = current_logits.argmax(axis=-1)
+            else:
+                prev_token = teacher_forcing_labels[i]
 
         return result
 
 class RnnAttentionHead(OcrPredictionHead):
     """
     Attention head based on LSTM encoder and LSTM decoder
+    Returns logprobs of shape (batch_size, num_classes, length),
+    appropiate for nn.CrossEntropyLoss calculation
     """
     # Keys in result dictionary
-    LOG_PROBS_KEY = "logprobs"
+    LOGITS_KEY = "logits"
 
     def __init__(self, base_params, encoder_lstm_args, decoder_hidden_size, embedding_size):
         super().__init__(**base_params)
 
-        encoder_lstm_args.extend(batch_first=True)
+        encoder_lstm_args.update(batch_first=True)
         self.encoder = nn.LSTM(self.input_height * self.input_channels, **encoder_lstm_args)
-        self.decoder = RnnAttentionDecoder(self.encoder.hidden_size, decoder_hidden_size,
+
+        num_directions = 2 if self.encoder.bidirectional else 1
+        decoder_input_size = num_directions * self.encoder.hidden_size
+        self.decoder = RnnAttentionDecoder(decoder_input_size, decoder_hidden_size,
                                            self.vocab_size, embedding_size)
 
     def forward(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
@@ -121,9 +127,11 @@ class RnnAttentionHead(OcrPredictionHead):
 
         features = features.view(batch, channels * height, width)
         features = features.permute(0, 2, 1)
-        features_encoded = self.encoder(features)
-        probabilities = self.decoder(features_encoded, teacher_forcing_labels, num_steps)
+        features_encoded, _ = self.encoder(features)
+        logits = self.decoder(features_encoded, teacher_forcing_labels, num_steps)
+        # Repack (L, B, C) -> (B, C, L)
+        logits = logits.permute(1, 2, 0)
 
         return {
-            self.LOG_PROBS_KEY: probabilities
+            self.LOGITS_KEY: logits
         }

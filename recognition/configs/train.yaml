@@ -16,12 +16,24 @@ model_params:
   feature_extractor_params:
     output_channels: 256
   heads_params:
-    ctc_head:
-      type: lstm_ctc
+    attn_head:
+      type: rnn_attn
       specific_params:
-        lstm_args:
+        encoder_lstm_args:
           hidden_size: 128
           bidirectional: True
+        decoder_hidden_size: 128
+        embedding_size: 128
+#    ctc_head:
+#      type: lstm_ctc
+#      specific_params:
+#        lstm_args:
+#          hidden_size: 128
+#          bidirectional: True
+
+runner_params:
+  attention_heads: True
+  max_prediction_length: 10
 
 args:
   logdir: *log_dir
@@ -49,6 +61,9 @@ stages:
     ctc:
       criterion: CTCLoss
       blank: 0
+    cross_entropy:
+      criterion: CrossEntropyLoss
+      ignore_index: -100
 
   optimizer_params:
     optimizer: Adam
@@ -64,9 +79,9 @@ stages:
     data_params:
       batch_size: 64
     
-    state_params:  # You can override any parameters for a particular stage, for example
+    state_params: 
       num_epochs: 9
-      main_metric: ctc.fragment_acc
+      main_metric: attn.fragment_acc #ctc.fragment_acc
       minimize_metric: False
       valid_loader: valid
 
@@ -75,29 +90,46 @@ stages:
       encode_labels:
         callback: EncodeLabelsCallback
         encoder_name: ctc
-      ctc_loss:
+      encode_labels:
+        callback: EncodeLabelsCallback
+        encoder_name: seq
+      ce_loss:
         callback: CriterionCallback
-        prefix: ctc_loss
-        criterion_key: ctc
-        input_key:
-          ctc.labels: targets
-          ctc.label_lengths: target_lengths
-        output_key:
-          ctc_head.logprobs: log_probs
-          ctc_head.logprobs_len: input_lengths
+        prefix: ce_loss
+        criterion_key: cross_entropy
+        input_key: seq.labels
+        output_key: attn_head.logits
+      #ctc_loss:
+      #  callback: CriterionCallback
+      #  prefix: ctc_loss
+      #  criterion_key: ctc
+      #  input_key:
+      #    ctc.labels: targets
+      #    ctc.label_lengths: target_lengths
+      #  output_key:
+      #    ctc_head.logprobs: log_probs
+      #    ctc_head.logprobs_len: input_lengths
       optimizer:
-        metric_key: ctc_loss
+        #metric_key: ctc_loss
+        metric_key: ce_loss
         callback: OptimizerCallback
       scheduler:
         callback: SchedulerCallback
         mode: epoch
       # Evaluation
+      #decode_labels:
+      #  callback: DecodeLabelsCallback
+      #  encoder_name: ctc
+      #  input_key: ctc_head.logprobs
+      #  output_key: ctc_head.string
       decode_labels:
         callback: DecodeLabelsCallback
-        encoder_name: ctc
-        input_key: ctc_head.logprobs
-        output_key: ctc_head.string
+        encoder_name: seq
+        input_key: attn_head.logits
+        output_key: attn_head.string
       metrics:
         callback: OcrMetricsCallback
-        prefix: ctc
-        output_key: ctc_head.string
+        #prefix: ctc
+        prefix: attn
+        #output_key: ctc_head.string
+        output_key: attn_head.string
