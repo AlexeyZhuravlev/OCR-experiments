@@ -7,10 +7,12 @@ from .core import OcrPredictionHead
 from src.runner import AdditionalDataKeys
 
 # TODO: Fully-check and debug this cell!!!
+# Refactor: move-out attention scoring mechanism (concat from https://arxiv.org/pdf/1508.04025.pdf)
+# Advanced TODO: GRU and other internal recurrents support
 class AttentionCell(nn.Module):
     """
-    Attention cell implementation: evaluating hidden size at each time step
-    based on
+    Attention recurrent cell implementation: evaluating hidden size at each time step
+    Implements Bahdanau additive attention mechanism (https://arxiv.org/pdf/1409.0473.pdf)
     """
     def __init__(self, input_size, hidden_size, token_input_size):
         super().__init__()

@@ -47,8 +47,11 @@ class OcrRunner(SupervisedRunner):
         # Add teacher forcing labels during training
         # None with specified in paratemers target length is passed during val/inference
         if self.state.is_train_loader:
+            # Sequence labels encoded as (batch_size, sequence_length) - valid for loss calculation
             labels = batch[SequenceLabelEncoding.LABELS_KEY]
-            num_steps = labels.shape[1]
+            # transpose to (sequence_length, batch_size) - heads expect this shape
+            labels = labels.transpose(1, 0)
+            num_steps = labels.shape[0]
             return {
                 AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY: labels.to(self.device),
                 AdditionalDataKeys.ATTENTION_NUM_STEPS_KEY: num_steps
