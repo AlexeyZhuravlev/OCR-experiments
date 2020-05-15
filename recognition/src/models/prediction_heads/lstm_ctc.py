@@ -25,7 +25,7 @@ class LstmCtcPredictionHead(OcrPredictionHead):
         self.grad_to_features = grad_to_features
 
     def forward(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        features = data[self.FEATURES_KEY].detach()
+        features = data[self.FEATURES_KEY]
         features_width = data[self.FEATURES_WIDTH_KEY]
 
         if not self.grad_to_features:
