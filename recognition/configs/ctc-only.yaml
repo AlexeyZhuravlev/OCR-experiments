@@ -1,7 +1,7 @@
 SharedParams:
   - &vocab_path C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\Sample\Vocab.txt
   - &data_root C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled 
-  - &log_dir C:\Users\User\Documents\PhD-study\Logs\gtc-baseline
+  - &log_dir C:\Users\User\Documents\PhD-study\Logs\ctc-baseline
   - &image_height 64
 
 vocab: *vocab_path
@@ -16,14 +16,6 @@ model_params:
   feature_extractor_params:
     output_channels: 256
   heads_params:
-    attn_head:
-      type: rnn_attn
-      specific_params:
-        encoder_lstm_args:
-          hidden_size: 128
-          bidirectional: True
-        decoder_hidden_size: 128
-        embedding_size: 128
     ctc_head:
       type: lstm_ctc
       specific_params:
@@ -33,8 +25,7 @@ model_params:
           bidirectional: True
 
 runner_params:
-  attention_heads: True
-  max_prediction_length: 10
+  attention_heads: False
 
 args:
   logdir: *log_dir
@@ -91,15 +82,6 @@ stages:
       encode_labels_ctc:
         callback: EncodeLabelsCallback
         encoder_name: ctc
-      encode_labels_seq:
-        callback: EncodeLabelsCallback
-        encoder_name: seq
-      ce_loss:
-        callback: CriterionCallback
-        prefix: ce_loss
-        criterion_key: cross_entropy
-        input_key: seq.labels
-        output_key: attn_head.logits
       ctc_loss:
         callback: CriterionCallback
         prefix: ctc_loss
@@ -110,15 +92,8 @@ stages:
         output_key:
           ctc_head.logprobs: log_probs
           ctc_head.logprobs_len: input_lengths
-      total_loss:
-        callback: MetricAggregationCallback
-        prefix: total_loss
-        metrics:
-          ce_loss: 1.0
-          ctc_loss: 1.0
-        mode: weighted_sum
       optimizer:
-        metric_key: total_loss
+        metric_key: ctc_loss
         callback: OptimizerCallback
       scheduler:
         callback: SchedulerCallback
@@ -129,15 +104,6 @@ stages:
         encoder_name: ctc
         input_key: ctc_head.logprobs
         output_key: ctc_head.string
-      decode_labels_attn:
-        callback: DecodeLabelsCallback
-        encoder_name: seq
-        input_key: attn_head.logits
-        output_key: attn_head.string
-      metrics_attn:
-        callback: OcrMetricsCallback
-        prefix: attn
-        output_key: attn_head.string
       metrics_ctc:
         callback: OcrMetricsCallback
         prefix: ctc
