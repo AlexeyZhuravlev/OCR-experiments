@@ -16,7 +16,8 @@ class EncodeLabelsCallback(Callback):
         raw_strings = state.input[DataItemKeys.STRING]
 
         encoded_result = self.encoder.encode_targets(raw_strings)
-        state.input.update(encoded_result)
+        for key, value in encoded_result.items():
+            state.input[key] = value.to(state.device)
 
 class DecodeLabelsCallback(Callback):
     """

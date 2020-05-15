@@ -79,7 +79,7 @@ class RnnAttentionDecoder(nn.Module):
         # Start from SOS token
         prev_token = torch.LongTensor(batch_size).fill_(self.sos_token).to(device)
 
-        result = torch.zeros(num_steps, batch_size, self.output_size)
+        result = torch.zeros(num_steps, batch_size, self.output_size).to(device)
 
         for i in range(num_steps):
             char_inputs = self.embedding(prev_token)

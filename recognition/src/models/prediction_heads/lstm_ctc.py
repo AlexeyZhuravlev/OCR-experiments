@@ -14,7 +14,7 @@ class LstmCtcPredictionHead(OcrPredictionHead):
     LOG_PROBS_KEY = "logprobs"
     LOG_PROBS_LEN_KEY = "logprobs_len"
 
-    def __init__(self, base_params, lstm_args: Dict):
+    def __init__(self, base_params, lstm_args: Dict, grad_to_features=True):
         super().__init__(**base_params)
 
         self.rnn = nn.LSTM(self.input_height * self.input_channels, **lstm_args)
@@ -22,10 +22,15 @@ class LstmCtcPredictionHead(OcrPredictionHead):
         num_directions = 2 if self.rnn.bidirectional else 1
         self.linear = nn.Linear(self.rnn.hidden_size * num_directions,\
                                 self.vocab_size + 1)
+        self.grad_to_features = grad_to_features
 
     def forward(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        features = data[self.FEATURES_KEY]
+        features = data[self.FEATURES_KEY].detach()
         features_width = data[self.FEATURES_WIDTH_KEY]
+
+        if not self.grad_to_features:
+            features = features.detach()
+
         batch, channels, height, width = features.shape
         assert height == self.input_height
         assert channels == self.input_channels
