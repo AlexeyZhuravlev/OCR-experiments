@@ -1,7 +1,7 @@
 SharedParams:
   - &vocab_path C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\Sample\Vocab.txt
   - &data_root C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled 
-  - &log_dir C:\Users\User\Documents\PhD-study\Logs\sample-run
+  - &log_dir C:\Users\User\Documents\PhD-study\Logs\car-plates\gtc
   - &image_height 64
 
 args:
@@ -15,6 +15,16 @@ args:
 vocab: *vocab_path
 data_registry:
   rootdir: *data_root
+  path_data:
+    CAR_TRAIN_VAL: Sample/Train
+    CAR_TEST: Sample/Test
+  operations:
+    - type: split
+      main: CAR_TRAIN_VAL
+      first: CAR_TRAIN
+      second: CAR_VAL
+      first_size: 0.8
+      shuffle: True
 
 model_params:
   model: MultiHeadOcrModel
@@ -36,7 +46,7 @@ model_params:
     ctc_head:
       type: ctc
       specific_params:
-        grad_to_features: True
+        grad_to_features: False
         lstm_args:
           hidden_size: 128
           bidirectional: True
@@ -57,21 +67,20 @@ stages:
     weight_decay: 0.0001
 
   scheduler_params:
-    scheduler: StepLR
-    step_size: 3
-    gamma: 0.5
+    scheduler: ReduceLROnPlateau
+    patience: 5
+    factor: 0.5
 
   train_stage: # Network training stage
     data_params:
       batch_size: 64
       dataset_names:
         train: CAR_TRAIN
-        valid: CAR_TEST
+        valid: CAR_VAL
     
     state_params:
-      num_epochs: 1
-      main_metric: ctc_head.fragment_acc
-      minimize_metric: False
+      num_epochs: 40
+      main_metric: total_loss
       valid_loader: valid
 
     callbacks_params:
@@ -94,6 +103,7 @@ stages:
       scheduler:
         callback: SchedulerCallback
         mode: epoch
+        reduced_metric: total_loss
 
   infer_stage: # Inference stage: final testing on several datasets
     data_params:
