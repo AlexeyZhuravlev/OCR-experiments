@@ -3,25 +3,73 @@ All datasets, used for training and testing to incapsulate all paths to dataset 
 """
 
 import os
-from torch.utils.data import ConcatDataset, Dataset
+from typing import List, Dict
+import numpy as np
+from torch.utils.data import ConcatDataset, Dataset, Subset
 from .dataset import LmdbDataset
-from typing import Dict
+
+# TODO: add more operation types like merge etc.
+class OperationTypeKeys:
+    """Data operation types to avoid misprints"""
+    SPLIT = "split"
 
 class DatasetRegistry:
     """
-    Registry for all dataset
+    Registry for all datasets
     """
 
     def __init__(self, params: Dict):
         self.data_root = params["rootdir"]
         self.register = {}
-        self._register_all_data()
+        self.register_all_paths(params.get("path_data", {}))
+        self.register_operation_data(params.get("operations", []))
 
     def get(self, name: str) -> Dataset:
         """
         Returns dataset by registered name
         """
         return self.register[name]
+
+    def register_all_paths(self, params: Dict):
+        for key, value in params.items():
+            self.register_by_path(key, value)
+
+    def register_operation_data(self, params: List[Dict]):
+        for operation_params in params:
+            type_key = "type"
+            operation_type = operation_params[type_key]
+            del operation_params[type_key]
+            if operation_type == OperationTypeKeys.SPLIT:
+                self.register_split(**operation_params)
+            else:
+                raise ValueError(operation_type)
+
+    def register_by_path(self, name, path):
+        """Registers dataset with key {name} by given path"""
+        self._register_data_element(name, self._get_dataset(path))
+
+    def register_split(self, main: str, first: str, second: str, first_size=0.5, shuffle=False):
+        """
+        Registers split for data element main of ratio first_size
+        and saves result to first and second keys respectively.
+        Shuffles indices before if needed
+        """
+        main_dataset = self.register[main]
+
+        main_dataset_size = len(main_dataset)
+        split_index = round(main_dataset_size * first_size)
+
+        if shuffle:
+            indices = np.random.permutation(main_dataset_size)
+        else:
+            indices = np.arange(main_dataset_size)
+
+        first_dataset = Subset(main_dataset, indices[:split_index])
+        second_dataset = Subset(main_dataset, indices[split_index:])
+
+        self._register_data_element(first, first_dataset)
+        self._register_data_element(second, second_dataset)
+
 
     def _get_dataset(self, relative_path):
         "Returns dataset by relative path"
@@ -36,6 +84,7 @@ class DatasetRegistry:
     def _register_by_path(self, name, path):
         self._register_data_element(name, self._get_dataset(path))
 
+    # TODO: Move all these data elements to config
     def _register_all_data(self):
         self._register_by_path("MJSYNTH", "Synthetic/MJ")
         synthtext_usual = self._get_dataset("Synthetic/ST_AN")
