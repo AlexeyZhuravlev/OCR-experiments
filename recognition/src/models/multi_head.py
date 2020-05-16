@@ -8,7 +8,7 @@ from src.runner import AdditionalDataKeys
 
 from .feature_extraction import FACTORY as extractors_factory
 from .prediction_heads import FACTORY as heads_factory
-from .prediction_heads import OcrPredictionHead
+from .prediction_heads import OcrPredictionHead, ATTENTION_HEAD_TYPES
 
 
 class MultiHeadOcrModel(nn.Module):
@@ -33,6 +33,7 @@ class MultiHeadOcrModel(nn.Module):
         heads_factory.set_base_params(heads_common_params)
 
         self.prediction_heads = {}
+        self.has_attention_head = False
 
         for head_key, head_params in heads_params.items():
             head_type = head_params["type"]
@@ -40,7 +41,10 @@ class MultiHeadOcrModel(nn.Module):
             self.prediction_heads[head_key] = heads_factory.get(head_type, head_specific_params)
             super().add_module(head_key, self.prediction_heads[head_key])
 
-    def forward(self, data : Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+            if head_type in ATTENTION_HEAD_TYPES:
+                self.has_attention_head = True
+
+    def forward(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
         Gets relevant keys from input data and returns dict with all head outputs
         Returns dict of tensor with predictions with following keys:

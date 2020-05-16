@@ -9,10 +9,8 @@ class AdditionalDataKeys:
     """
     # Key main model dict to store additional parameters
     HEADS_ADDITIONAL_DATA = "heads_additional"
-    # Keys, which are used inside this dictionary
-    # Additional keys, which are added to model input whet attention_heads=True
+    # Additional key, which are added to model input when it has attention head
     TEACHER_FORCING_LABELS_KEY = "teacher_forcing_labels"
-    ATTENTION_NUM_STEPS_KEY = "attention_num_steps"
 
 class OcrRunner(SupervisedRunner):
     """
@@ -20,12 +18,9 @@ class OcrRunner(SupervisedRunner):
     Handles additional logic about which data is passed to model
     """
 
-    def __init__(self, model=None, device=None, attention_heads=False,
-                 max_prediction_length=25):
+    def __init__(self, model=None, device=None):
         super().__init__(model=model, device=device,
                          input_key=None, output_key=None, input_target_key=None)
-        self.attention_heads = attention_heads
-        self.max_prediction_length = max_prediction_length
 
     def forward(self, batch: Mapping[str, Any], **kwargs) -> Mapping[str, Any]:
         model_input = {
@@ -35,7 +30,7 @@ class OcrRunner(SupervisedRunner):
         }
 
         # Add additional data for some classification heads
-        if self.attention_heads:
+        if self.model.has_attention_head:
             attention_heads_data = self._get_attention_heads_input(batch)
             model_input[AdditionalDataKeys.HEADS_ADDITIONAL_DATA].update(attention_heads_data)
 
@@ -51,13 +46,10 @@ class OcrRunner(SupervisedRunner):
             labels = batch[SequenceLabelEncoding.LABELS_KEY]
             # transpose to (sequence_length, batch_size) - heads expect this shape
             labels = labels.transpose(1, 0)
-            num_steps = labels.shape[0]
             return {
-                AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY: labels.to(self.device),
-                AdditionalDataKeys.ATTENTION_NUM_STEPS_KEY: num_steps
+                AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY: labels.to(self.device)
             }
         else:
             return {
-                AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY: None,
-                AdditionalDataKeys.ATTENTION_NUM_STEPS_KEY: self.max_prediction_length
+                AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY: None
             }

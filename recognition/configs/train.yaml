@@ -1,8 +1,16 @@
 SharedParams:
   - &vocab_path C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\Sample\Vocab.txt
   - &data_root C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled 
-  - &log_dir C:\Users\User\Documents\PhD-study\Logs\gtc-baseline
+  - &log_dir C:\Users\User\Documents\PhD-study\Logs\sample-run
   - &image_height 64
+
+args:
+  logdir: *log_dir
+  expdir: src
+  seed: 42 
+  deterministic: True
+  benchmark: True
+  verbose: True
 
 vocab: *vocab_path
 data_registry:
@@ -19,36 +27,22 @@ model_params:
     attn_head:
       type: rnn_attn
       specific_params:
+        max_num_steps: 10
         encoder_lstm_args:
           hidden_size: 128
           bidirectional: True
         decoder_hidden_size: 128
         embedding_size: 128
     ctc_head:
-      type: lstm_ctc
+      type: ctc
       specific_params:
         grad_to_features: True
         lstm_args:
           hidden_size: 128
           bidirectional: True
 
-runner_params:
-  attention_heads: True
-  max_prediction_length: 10
-
-args:
-  logdir: *log_dir
-  expdir: src
-  seed: 42 
-  deterministic: True
-  benchmark: True
-  verbose: True
-
 stages: 
   data_params:
-    dataset_names:
-      train: CAR_TRAIN
-      valid: CAR_TEST
     image_resize_params:
       # All images are firstly resized to have fixed height keeping aspect ratio
       height: *image_height 
@@ -56,15 +50,6 @@ stages:
       min_width: 256
       max_width: 256
     num_workers: 0
-
-  criterion_params:
-    _key_value: True
-    ctc:
-      criterion: CTCLoss
-      blank: 0
-    cross_entropy:
-      criterion: CrossEntropyLoss
-      ignore_index: -100
 
   optimizer_params:
     optimizer: Adam
@@ -76,69 +61,56 @@ stages:
     step_size: 3
     gamma: 0.5
 
-  train_stage: # Training stage
+  train_stage: # Network training stage
     data_params:
       batch_size: 64
+      dataset_names:
+        train: CAR_TRAIN
+        valid: CAR_TEST
     
-    state_params: 
-      num_epochs: 9
-      main_metric: ctc.fragment_acc
+    state_params:
+      num_epochs: 1
+      main_metric: ctc_head.fragment_acc
       minimize_metric: False
       valid_loader: valid
 
-    callbacks_params: 
-      # Training
-      encode_labels_ctc:
-        callback: EncodeLabelsCallback
-        encoder_name: ctc
-      encode_labels_seq:
-        callback: EncodeLabelsCallback
-        encoder_name: seq
+    callbacks_params:
       ce_loss:
-        callback: CriterionCallback
-        prefix: ce_loss
-        criterion_key: cross_entropy
-        input_key: seq.labels
-        output_key: attn_head.logits
+        callback: CrossEntropyCriterionCallback
+        head_key: attn_head
       ctc_loss:
-        callback: CriterionCallback
-        prefix: ctc_loss
-        criterion_key: ctc
-        input_key:
-          ctc.labels: targets
-          ctc.label_lengths: target_lengths
-        output_key:
-          ctc_head.logprobs: log_probs
-          ctc_head.logprobs_len: input_lengths
+        callback: CtcCriterionCallback
+        head_key: ctc_head
       total_loss:
         callback: MetricAggregationCallback
         prefix: total_loss
         metrics:
-          ce_loss: 1.0
-          ctc_loss: 1.0
-        mode: weighted_sum
+          - attn_head.loss
+          - ctc_head.loss
+        mode: sum
       optimizer:
-        metric_key: total_loss
         callback: OptimizerCallback
+        metric_key: total_loss
       scheduler:
         callback: SchedulerCallback
         mode: epoch
-      # Evaluation
-      decode_labels_ctc:
-        callback: DecodeLabelsCallback
-        encoder_name: ctc
-        input_key: ctc_head.logprobs
-        output_key: ctc_head.string
-      decode_labels_attn:
-        callback: DecodeLabelsCallback
-        encoder_name: seq
-        input_key: attn_head.logits
-        output_key: attn_head.string
-      metrics_attn:
-        callback: OcrMetricsCallback
-        prefix: attn
-        output_key: attn_head.string
-      metrics_ctc:
-        callback: OcrMetricsCallback
-        prefix: ctc
-        output_key: ctc_head.string
+
+  infer_stage: # Inference stage: final testing on several datasets
+    data_params:
+      batch_size: 1
+      dataset_names:
+        car_test: CAR_TEST
+    
+    state_params: 
+      num_epochs: 1
+
+    callbacks_params:
+      load_best_checkpoint:
+        callback: CheckpointCallback
+        #load_on_stage_start: best. # Should be added in Catalyst 20.6 and later
+      metric_manager:
+        callback: MetricManagerCallback
+      console:
+        callback: ConsoleLogger
+      tensorboard:
+        callback: TensorboardLogger

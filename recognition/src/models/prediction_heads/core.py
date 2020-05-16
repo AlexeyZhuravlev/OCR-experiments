@@ -3,6 +3,14 @@ from torch import nn
 from abc import ABC, abstractmethod
 from typing import Dict
 
+class HeadOutputKeys:
+    """
+    Keys, used in models output dictionaries with valid information for loss calculation
+    """
+    LOG_PROBS = "logprobs"
+    LOG_PROBS_LEN = "logprobs_len"
+    LOGITS = "logits"
+
 class OcrPredictionHead(ABC, nn.Module):
 
     # Keys of dict which heads might expect in their input
@@ -17,6 +25,22 @@ class OcrPredictionHead(ABC, nn.Module):
         self.vocab_size = vocab_size
         self.input_height = input_height
         self.input_channels = input_channels
+
+    @staticmethod
+    @abstractmethod
+    def get_label_encoder_name() -> str:
+        """
+        Returns label encoding name which should be used for this head type
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def get_decoding_tensor_key() -> str:
+        """
+        Returns key of tensor, which should be used for decoding into string
+        """
+        pass
 
     @abstractmethod
     def forward(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:

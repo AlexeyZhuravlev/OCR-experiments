@@ -1,18 +1,15 @@
 import torch
 from torch import nn
 from typing import Dict, List
-from .core import OcrPredictionHead
+from .core import OcrPredictionHead, HeadOutputKeys
 import torch.nn.functional as F
 
-class LstmCtcPredictionHead(OcrPredictionHead):
+class CtcPredictionHead(OcrPredictionHead):
     """
     Prediction head based on LSTM along width dimension of the features tensor with FC prediction
     Returns tensor of log_probs of shape (L, B, C) and their effective lengths of shape (B,),
     which can be used for ctc_loss calculation.
     """
-    # Keys in result dictionary
-    LOG_PROBS_KEY = "logprobs"
-    LOG_PROBS_LEN_KEY = "logprobs_len"
 
     def __init__(self, base_params, lstm_args: Dict, grad_to_features=True):
         super().__init__(**base_params)
@@ -23,6 +20,14 @@ class LstmCtcPredictionHead(OcrPredictionHead):
         self.linear = nn.Linear(self.rnn.hidden_size * num_directions,\
                                 self.vocab_size + 1)
         self.grad_to_features = grad_to_features
+
+    @staticmethod
+    def get_label_encoder_name() -> str:
+        return "ctc"
+
+    @staticmethod
+    def get_decoding_tensor_key() -> str:
+        return HeadOutputKeys.LOG_PROBS
 
     def forward(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         features = data[self.FEATURES_KEY]
@@ -43,8 +48,8 @@ class LstmCtcPredictionHead(OcrPredictionHead):
         log_probs = F.log_softmax(logits, dim=-1)
 
         result = {
-            self.LOG_PROBS_KEY: log_probs,
-            self.LOG_PROBS_LEN_KEY: features_width
+            HeadOutputKeys.LOG_PROBS: log_probs,
+            HeadOutputKeys.LOG_PROBS_LEN: features_width
         }
 
         return result

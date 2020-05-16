@@ -3,7 +3,7 @@ from typing import Dict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .core import OcrPredictionHead
+from .core import OcrPredictionHead, HeadOutputKeys
 from src.runner import AdditionalDataKeys
 
 # TODO: Fully-check and debug this cell!!!
@@ -104,10 +104,9 @@ class RnnAttentionHead(OcrPredictionHead):
     Returns logprobs of shape (batch_size, num_classes, length),
     appropiate for nn.CrossEntropyLoss calculation
     """
-    # Keys in result dictionary
-    LOGITS_KEY = "logits"
 
-    def __init__(self, base_params, encoder_lstm_args, decoder_hidden_size, embedding_size):
+    def __init__(self, base_params, encoder_lstm_args, decoder_hidden_size, embedding_size,
+                 max_num_steps):
         super().__init__(**base_params)
 
         encoder_lstm_args.update(batch_first=True)
@@ -117,11 +116,24 @@ class RnnAttentionHead(OcrPredictionHead):
         decoder_input_size = num_directions * self.encoder.hidden_size
         self.decoder = RnnAttentionDecoder(decoder_input_size, decoder_hidden_size,
                                            self.vocab_size, embedding_size)
+        self.max_num_steps = max_num_steps
+
+    @staticmethod
+    def get_label_encoder_name() -> str:
+        return "seq"
+
+    @staticmethod
+    def get_decoding_tensor_key() -> str:
+        return HeadOutputKeys.LOGITS
 
     def forward(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         features = data[self.FEATURES_KEY]
         teacher_forcing_labels = data[AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY]
-        num_steps = data[AdditionalDataKeys.ATTENTION_NUM_STEPS_KEY]
+
+        if teacher_forcing_labels is None:
+            num_steps = self.max_num_steps
+        else:
+            num_steps = teacher_forcing_labels.shape[0]
 
         batch, channels, height, width = features.shape
         assert height == self.input_height
@@ -135,5 +147,5 @@ class RnnAttentionHead(OcrPredictionHead):
         logits = logits.permute(1, 2, 0)
 
         return {
-            self.LOGITS_KEY: logits
+            HeadOutputKeys.LOGITS: logits
         }
