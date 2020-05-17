@@ -1,9 +1,12 @@
+"""
+Implementation taken from https://github.com/clovaai/deep-text-recognition-benchmark/blob/master/modules/prediction.py
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# TODO: Fully-check and debug this cell!!!
-# Refactor: move-out attention scoring mechanism (concat from https://arxiv.org/pdf/1508.04025.pdf)
+# TODO: Refactor: move-out attention scoring mechanism (concat from https://arxiv.org/pdf/1508.04025.pdf)
 # Advanced TODO: GRU and other internal recurrents support
 class AttentionCell(nn.Module):
     """

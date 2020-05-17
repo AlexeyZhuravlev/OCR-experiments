@@ -7,6 +7,7 @@ import random
 import six
 import lmdb
 from torch.utils.data import Dataset, ConcatDataset, Subset
+from torch.nn import functional as F
 from PIL import Image
 import numpy as np
 
@@ -25,10 +26,11 @@ class LmdbDataset(Dataset):
     Key num-samples should contain total image count
     """
 
-    def __init__(self, root, image_format="RGB"):
+    def __init__(self, root, image_format="RGB", case_sensitive=False):
 
         self.root = root
         self.image_format = image_format
+        self.case_sensitive = case_sensitive
         self.env = lmdb.open(root, max_readers=32, readonly=True, lock=False,
                              readahead=False, meminit=False)
 
@@ -74,6 +76,9 @@ class LmdbDataset(Dataset):
                 img = Image.open(buf).convert(self.image_format)
             except IOError:
                 raise RuntimeError("Corrupted image for {}".format(index))
+
+        if not self.case_sensitive:
+            label = label.lower()
 
         item = {
             DataItemKeys.IMAGE: np.array(img),
@@ -134,13 +139,15 @@ class HybridDataset(ConcatDataset):
             if isinstance(dataset, DataSubsetProvider):
                 dataset.next_subset()
 
-class DatasetWithTransforms(Dataset):
+class PaddedDatasetWithTransforms(Dataset):
     """
     Wraps any existing OCR dataset and image transforms function to apply when getting elements
+    Also padds smaller images to pad_width
     """
-    def __init__(self, dataset, transforms):
+    def __init__(self, dataset, transforms, pad_width):
         self.dataset = dataset
         self.tranforms = transforms
+        self.pad_width = pad_width
 
     def __len__(self):
         return len(self.dataset)
@@ -149,7 +156,12 @@ class DatasetWithTransforms(Dataset):
         item = self.dataset[index]
 
         image = self.tranforms(image=item[DataItemKeys.IMAGE])["image"]
+
+        width = image.shape[-1]
+        padding_right = self.pad_width - width
+        image = F.pad(image, (0, padding_right))
+
         item[DataItemKeys.IMAGE] = image
-        item[DataItemKeys.IMAGE_WIDTH] = image.shape[2]
+        item[DataItemKeys.IMAGE_WIDTH] = width
 
         return item

@@ -1,8 +1,10 @@
 SharedParams:
   - &vocab_path C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\Sample\Vocab.txt
   - &data_root C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled 
-  - &log_dir C:\Users\User\Documents\PhD-study\Logs\car-plates\gtc
+  - &log_dir C:\Users\User\Documents\PhD-study\Logs\car-plates\check
   - &image_height 64
+  - &image_min_width 256
+  - &image_max_width 256
 
 args:
   logdir: *log_dir
@@ -15,6 +17,7 @@ args:
 vocab: *vocab_path
 data_registry:
   rootdir: *data_root
+  case_sensitive: False
   path_data:
     CAR_TRAIN_VAL: Sample/Train
     CAR_TEST: Sample/Test
@@ -29,36 +32,39 @@ data_registry:
 model_params:
   model: MultiHeadOcrModel
   input_height: *image_height
-
-  feature_extractor_name: simple
+  input_width: *image_max_width
+  stn_params:
+    use: False
+    num_fiducial: 20
   feature_extractor_params:
-    output_channels: 256
+    type: simple
   heads_params:
     attn_head:
       type: rnn_attn
-      specific_params:
-        max_num_steps: 10
-        encoder_lstm_args:
-          hidden_size: 128
-          bidirectional: True
-        decoder_hidden_size: 128
+      encoder_params:
+        mode: none
+        args: {}
+         #hidden_size: 128
+         #bidirectional: True
+      decoder_params:
+        hidden_size: 128
         embedding_size: 128
+        max_num_steps: 10
     ctc_head:
       type: ctc
-      specific_params:
-        grad_to_features: False
-        lstm_args:
-          hidden_size: 128
-          bidirectional: True
+      grad_to_features: True
+      lstm_args:
+        hidden_size: 128
+        bidirectional: True
 
 stages: 
   data_params:
     image_resize_params:
       # All images are firstly resized to have fixed height keeping aspect ratio
-      height: *image_height 
+      height: *image_height
       # Allowed images width range. Smaller images are padded to max_width on the right side
-      min_width: 256
-      max_width: 256
+      min_width: *image_min_width
+      max_width: *image_max_width
     num_workers: 0
 
   optimizer_params:
@@ -67,9 +73,9 @@ stages:
     weight_decay: 0.0001
 
   scheduler_params:
-    scheduler: ReduceLROnPlateau
-    patience: 5
-    factor: 0.5
+    scheduler: StepLR
+    step_size: 30
+    gamma: 0.1
 
   train_stage: # Network training stage
     data_params:
@@ -79,8 +85,9 @@ stages:
         valid: CAR_VAL
     
     state_params:
-      num_epochs: 40
-      main_metric: total_loss
+      num_epochs: 60
+      main_metric: ctc_head.fragment_acc
+      minimize_metric: False
       valid_loader: valid
 
     callbacks_params:
@@ -103,7 +110,6 @@ stages:
       scheduler:
         callback: SchedulerCallback
         mode: epoch
-        reduced_metric: total_loss
 
   infer_stage: # Inference stage: final testing on several datasets
     data_params:

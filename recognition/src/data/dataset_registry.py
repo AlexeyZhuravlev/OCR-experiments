@@ -8,10 +8,9 @@ import numpy as np
 from torch.utils.data import ConcatDataset, Dataset, Subset
 from .dataset import LmdbDataset
 
-# TODO: add more operation types like merge etc.
 class OperationTypeKeys:
-    """Data operation types to avoid misprints"""
     SPLIT = "split"
+    MERGE = "merge"
 
 class DatasetRegistry:
     """
@@ -20,6 +19,7 @@ class DatasetRegistry:
 
     def __init__(self, params: Dict):
         self.data_root = params["rootdir"]
+        self.case_sensitive = params["case_sensitive"]
         self.register = {}
         self.register_all_paths(params.get("path_data", {}))
         self.register_operations_data(params.get("operations", []))
@@ -42,9 +42,10 @@ class DatasetRegistry:
         operation_type = kwargs.pop("type")
         if operation_type == OperationTypeKeys.SPLIT:
             self.register_split(**kwargs)
+        elif operation_type == OperationTypeKeys.MERGE:
+            self.register_merge(**kwargs)
         else:
             raise ValueError(operation_type)
-
 
     def register_by_path(self, name, path):
         """Registers dataset with key {name} by given path"""
@@ -72,13 +73,21 @@ class DatasetRegistry:
         self._register_data_element(first, first_dataset)
         self._register_data_element(second, second_dataset)
 
+    def register_merge(self, target: str, components: List[str]):
+        """
+        Registers merge of several datasets
+        """
+        datasets = [self.register[name] for name in components]
+        merged_dataset = ConcatDataset(datasets)
+
+        self._register_data_element(target, merged_dataset)
 
     def _get_dataset(self, relative_path):
         "Returns dataset by relative path"
         data_root = self.data_root
         full_path = os.path.join(data_root, relative_path)
 
-        return LmdbDataset(full_path)
+        return LmdbDataset(full_path, case_sensitive=self.case_sensitive)
 
     def _register_data_element(self, name, dataset):
         self.register[name] = dataset

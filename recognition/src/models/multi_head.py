@@ -9,19 +9,22 @@ from src.runner import AdditionalDataKeys
 from .feature_extraction import FACTORY as extractors_factory
 from .prediction_heads import FACTORY as heads_factory
 from .prediction_heads import OcrPredictionHead, ATTENTION_HEAD_TYPES
-
+from .modules import SpatialTransformerNetwork
 
 class MultiHeadOcrModel(nn.Module):
     """
     Ocr model with common feature extractor and multiple heads
     """
 
-    def __init__(self, vocab_size: int, input_height: int, feature_extractor_name: str,\
+    def __init__(self, vocab_size: int, input_height: int, input_width: int, stn_params: Dict,\
                  feature_extractor_params: Dict, heads_params: Dict):
         super().__init__()
 
-        self.feature_extractor = extractors_factory.get(feature_extractor_name,\
-                                                        feature_extractor_params)
+        self.input_height = input_height
+        self.input_width = input_width
+
+        self.spatial_transformer = self._get_spatial_transformer(**stn_params)
+        self.feature_extractor = self._get_feature_extractor(**feature_extractor_params)
 
         height = input_height // self.feature_extractor.vertical_scale
         channels = self.feature_extractor.output_channels
@@ -38,6 +41,17 @@ class MultiHeadOcrModel(nn.Module):
         for head_key, head_params in heads_params.items():
             self.prediction_heads[head_key] = self._add_head(**head_params)
             super().add_module(head_key, self.prediction_heads[head_key])
+
+    def _get_spatial_transformer(self, use: bool, num_fiducial: int = 20):
+        if use:
+            shape = (self.input_height, self.input_width)
+            return SpatialTransformerNetwork(num_fiducial, shape, shape, 3)
+        else:
+            return None
+
+    def _get_feature_extractor(self, **kwargs):
+        feature_extractor_type = kwargs.pop("type")
+        return extractors_factory.get(feature_extractor_type, **kwargs)
 
     def _add_head(self, **kwargs):
         head_type = kwargs.pop("type")
@@ -57,6 +71,9 @@ class MultiHeadOcrModel(nn.Module):
 
         images = data[DataItemKeys.IMAGE]
         images_width = data[DataItemKeys.IMAGE_WIDTH]
+
+        if self.spatial_transformer:
+            images = self.spatial_transformer(images)
 
         features = self.feature_extractor(images)
         features_width = images_width // self.feature_extractor.horizontal_scale

@@ -4,7 +4,7 @@ from .core import BaseFeatureExtractor
 from torchvision.models import resnet
 
 class SimpleFeatureExtractor(BaseFeatureExtractor):
-    def __init__(self, output_channels):
+    def __init__(self, output_channels=256):
         super().__init__()
         self._output_channels = output_channels
         self.layers = nn.Sequential(

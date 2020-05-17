@@ -1,0 +1,132 @@
+SharedParams:
+  - &vocab_path C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\Sample\Vocab.txt
+  - &data_root C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled 
+  - &log_dir C:\Users\User\Documents\PhD-study\Logs\car-plates\check
+  - &image_height 64
+  - &image_min_width 256
+  - &image_max_width 256
+
+args:
+  logdir: *log_dir
+  expdir: src
+  seed: 42 
+  deterministic: True
+  benchmark: True
+  verbose: True
+
+vocab: *vocab_path
+data_registry:
+  rootdir: *data_root
+  case_sensitive: False
+  path_data:
+    CAR_TRAIN_VAL: Sample/Train
+    CAR_TEST: Sample/Test
+  operations:
+    - type: split
+      main: CAR_TRAIN_VAL
+      first: CAR_TRAIN
+      second: CAR_VAL
+      first_size: 0.8
+      shuffle: True
+
+model_params:
+  model: MultiHeadOcrModel
+  input_height: *image_height
+  input_width: *image_max_width
+  stn_params:
+    use: False
+    num_fiducial: 20
+  feature_extractor_params:
+    type: simple
+  heads_params:
+    attn_head:
+      type: rnn_attn
+      encoder_params:
+        mode: none
+        args: {}
+         #hidden_size: 128
+         #bidirectional: True
+      decoder_params:
+        hidden_size: 128
+        embedding_size: 128
+        max_num_steps: 10
+    ctc_head:
+      type: ctc
+      grad_to_features: True
+      lstm_args:
+        hidden_size: 128
+        bidirectional: True
+
+stages: 
+  data_params:
+    image_resize_params:
+      # All images are firstly resized to have fixed height keeping aspect ratio
+      height: *image_height
+      # Allowed images width range. Smaller images are padded to max_width on the right side
+      min_width: *image_min_width
+      max_width: *image_max_width
+    num_workers: 0
+
+  optimizer_params:
+    optimizer: Adam
+    lr: 0.001
+    weight_decay: 0.0001
+
+  scheduler_params:
+    scheduler: StepLR
+    step_size: 30
+    gamma: 0.1
+
+  train_stage: # Network training stage
+    data_params:
+      batch_size: 64
+      dataset_names:
+        train: CAR_TRAIN
+        valid: CAR_VAL
+    
+    state_params:
+      num_epochs: 60
+      main_metric: ctc_head.fragment_acc
+      minimize_metric: False
+      valid_loader: valid
+
+    callbacks_params:
+      ce_loss:
+        callback: CrossEntropyCriterionCallback
+        head_key: attn_head
+      ctc_loss:
+        callback: CtcCriterionCallback
+        head_key: ctc_head
+      total_loss:
+        callback: MetricAggregationCallback
+        prefix: total_loss
+        metrics:
+          - attn_head.loss
+          - ctc_head.loss
+        mode: sum
+      optimizer:
+        callback: OptimizerCallback
+        metric_key: total_loss
+      scheduler:
+        callback: SchedulerCallback
+        mode: epoch
+
+  infer_stage: # Inference stage: final testing on several datasets
+    data_params:
+      batch_size: 1
+      dataset_names:
+        car_test: CAR_TEST
+    
+    state_params: 
+      num_epochs: 1
+
+    callbacks_params:
+      load_best_checkpoint:
+        callback: CheckpointCallback
+        #load_on_stage_start: best. # Should be added in Catalyst 20.6 and later
+      metric_manager:
+        callback: MetricManagerCallback
+      console:
+        callback: ConsoleLogger
+      tensorboard:
+        callback: TensorboardLogger

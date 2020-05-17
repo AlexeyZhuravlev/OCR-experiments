@@ -1,6 +1,6 @@
 import collections
 from catalyst.dl import ConfigExperiment
-from .data import DatasetRegistry, DatasetWithTransforms
+from .data import DatasetRegistry, PaddedDatasetWithTransforms
 from .data import pre_transforms, post_transforms
 from .label_encodings import FACTORY as label_encoding_factory
 from .callbacks import OcrMetricsCallback, EncodeLabelsCallback, DecodeLabelsCallback
@@ -39,7 +39,8 @@ class OcrExperiment(ConfigExperiment):
         for dataset, registry_key in dataset_names.items():
             raw_dataset = self.data_registry.get(registry_key)
             transforms = self.get_transforms(stage, dataset, image_resize_params)
-            datasets[dataset] = DatasetWithTransforms(raw_dataset, transforms)
+            datasets[dataset] = PaddedDatasetWithTransforms(raw_dataset, transforms,
+                                                            image_resize_params["max_width"])
 
         return datasets
 
