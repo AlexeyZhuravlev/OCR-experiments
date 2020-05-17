@@ -22,7 +22,7 @@ class DatasetRegistry:
         self.data_root = params["rootdir"]
         self.register = {}
         self.register_all_paths(params.get("path_data", {}))
-        self.register_operation_data(params.get("operations", []))
+        self.register_operations_data(params.get("operations", []))
 
     def get(self, name: str) -> Dataset:
         """
@@ -34,15 +34,17 @@ class DatasetRegistry:
         for key, value in params.items():
             self.register_by_path(key, value)
 
-    def register_operation_data(self, params: List[Dict]):
+    def register_operations_data(self, params: List[Dict]):
         for operation_params in params:
-            type_key = "type"
-            operation_type = operation_params[type_key]
-            del operation_params[type_key]
-            if operation_type == OperationTypeKeys.SPLIT:
-                self.register_split(**operation_params)
-            else:
-                raise ValueError(operation_type)
+            self.register_operation_data(**operation_params)
+
+    def register_operation_data(self, **kwargs):
+        operation_type = kwargs.pop("type")
+        if operation_type == OperationTypeKeys.SPLIT:
+            self.register_split(**kwargs)
+        else:
+            raise ValueError(operation_type)
+
 
     def register_by_path(self, name, path):
         """Registers dataset with key {name} by given path"""

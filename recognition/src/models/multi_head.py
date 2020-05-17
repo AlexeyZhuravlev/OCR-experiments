@@ -25,24 +25,28 @@ class MultiHeadOcrModel(nn.Module):
 
         height = input_height // self.feature_extractor.vertical_scale
         channels = self.feature_extractor.output_channels
-        heads_common_params = {
-            "vocab_size": vocab_size,
-            "input_height": height,
-            "input_channels": channels
-        }
-        heads_factory.set_base_params(heads_common_params)
+
+        heads_factory.set_base_params(
+            vocab_size=vocab_size,
+            input_height=height,
+            input_channels=channels
+        )
 
         self.prediction_heads = {}
         self.has_attention_head = False
 
         for head_key, head_params in heads_params.items():
-            head_type = head_params["type"]
-            head_specific_params = head_params["specific_params"]
-            self.prediction_heads[head_key] = heads_factory.get(head_type, head_specific_params)
+            self.prediction_heads[head_key] = self._add_head(**head_params)
             super().add_module(head_key, self.prediction_heads[head_key])
 
-            if head_type in ATTENTION_HEAD_TYPES:
-                self.has_attention_head = True
+    def _add_head(self, **kwargs):
+        head_type = kwargs.pop("type")
+        head = heads_factory.get(head_type, **kwargs)
+
+        if head_type in ATTENTION_HEAD_TYPES:
+            self.has_attention_head = True
+
+        return head
 
     def forward(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
