@@ -1,10 +1,10 @@
 SharedParams:
-  - &vocab_path C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\Sample\Vocab.txt
+  - &vocab_path C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\AlphanumericWithPunctNoCase.txt
   - &data_root C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled 
-  - &log_dir C:\Users\User\Documents\PhD-study\Logs\car-plates\check
+  - &log_dir C:\Users\User\Documents\PhD-study\Logs\street-view\stn-resnet50-blstm256-ctc-onlysynth
   - &image_height 64
-  - &image_min_width 256
-  - &image_max_width 256
+  - &image_min_width 64
+  - &image_max_width 160
 
 args:
   logdir: *log_dir
@@ -19,42 +19,67 @@ data_registry:
   rootdir: *data_root
   case_sensitive: False
   path_data:
-    CAR_TRAIN_VAL: Sample/Train
-    CAR_TEST: Sample/Test
+    MJ: Synthetic/MJ
+    ST_AN: Synthetic/ST_AN
+    ST_SPE: Synthetic/ST_spe
+    SYNTHADD: Synthetic/SynthAdd
+    COCO_TRAIN: Real/Train/COCO_TRAIN
+    COCO_VAL: Real/Train/COCO_VAL
+    IC03_TRAIN: Real/Train/IC03
+    IC13_TRAIN: Real/Train/IC13
+    IC15_TRAIN: Real/Train/IC15
+    IIIT5K_TRAIN: Real/Train/IIIT5k
+    RRC_ART: Real/Train/RRC_ArT
+    SVT_TRAIN: Real/Train/SVT
+    IC03_TEST: Real/Test/IC03
+    IC13_TEST: Real/Test/IC13
+    IC15_TEST: Real/Test/IC15
+    IIIT5K_TEST: Real/Test/IIIT5K
+    SVT_TEST: Real/Test/SVT
+    SVTP: Real/Test/SVTP
+    CUTE80: Real/Test/CUTE80
   operations:
-    - type: split
-      main: CAR_TRAIN_VAL
-      first: CAR_TRAIN
-      second: CAR_VAL
-      first_size: 0.8
-      shuffle: True
+    - type: merge
+      target: SYNTHETIC
+      components:
+        - MJ
+        - ST_AN
+        - ST_SPE
+        - SYNTHADD
+    - type: merge
+      target: REAL_TRAIN
+      components:
+        - IC13_TRAIN
+        - IC15_TRAIN
+        - IIIT5K_TRAIN
+        - SVT_TRAIN
 
 model_params:
   model: MultiHeadOcrModel
   input_height: *image_height
   input_width: *image_max_width
   stn_params:
-    use: False
+    use: True
     num_fiducial: 20
   feature_extractor_params:
-    type: simple
+    type: resnet50
   heads_params:
-    attn_head:
-      type: rnn_attn
-      encoder_params:
-        mode: none
-        args: {}
+    #attn_head:
+    #  type: rnn_attn
+    #  encoder_params:
+    #    mode: none
+    #    args: {}
          #hidden_size: 128
          #bidirectional: True
-      decoder_params:
-        hidden_size: 128
-        embedding_size: 128
-        max_num_steps: 10
+    #  decoder_params:
+    #    hidden_size: 128
+    #    embedding_size: 128
+    #    max_num_steps: 25
     ctc_head:
       type: ctc
       grad_to_features: True
       lstm_args:
-        hidden_size: 128
+        hidden_size: 256
         bidirectional: True
 
 stages: 
@@ -81,8 +106,15 @@ stages:
     data_params:
       batch_size: 64
       dataset_names:
-        train: CAR_TRAIN
-        valid: CAR_VAL
+        train: SYNTHETIC
+        valid: REAL_TRAIN
+      samplers_params: 
+        train:
+          sampler: MiniEpochSampler 
+          data_len: 17139350
+          mini_epoch_len: 300000
+          drop_last: False
+          shuffle: per_epoch
     
     state_params:
       num_epochs: 60
@@ -91,9 +123,9 @@ stages:
       valid_loader: valid
 
     callbacks_params:
-      ce_loss:
-        callback: CrossEntropyCriterionCallback
-        head_key: attn_head
+      #ce_loss:
+      #  callback: CrossEntropyCriterionCallback
+      #  head_key: attn_head
       ctc_loss:
         callback: CtcCriterionCallback
         head_key: ctc_head
@@ -101,7 +133,7 @@ stages:
         callback: MetricAggregationCallback
         prefix: total_loss
         metrics:
-          - attn_head.loss
+          #- attn_head.loss
           - ctc_head.loss
         mode: sum
       optimizer:
@@ -111,11 +143,17 @@ stages:
         callback: SchedulerCallback
         mode: epoch
 
-  infer_stage: # Inference stage: final testing on several datasets
+  infer_stage: # Inference stage: final testing on main SVT benchmarks
     data_params:
       batch_size: 1
       dataset_names:
-        car_test: CAR_TEST
+        IIIT: IIIT5K_TEST
+        SVT: SVT_TEST
+        IC03: IC03_TEST
+        IC13: IC13_TEST
+        IC15: IC15_TEST
+        SVTP: SVTP
+        CUTE80: CUTE80
     
     state_params: 
       num_epochs: 1
@@ -126,6 +164,8 @@ stages:
         #load_on_stage_start: best. # Should be added in Catalyst 20.6 and later
       metric_manager:
         callback: MetricManagerCallback
+      timer:
+        callback: TimerCallback
       console:
         callback: ConsoleLogger
       tensorboard:
