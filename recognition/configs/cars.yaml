@@ -37,7 +37,7 @@ model_params:
     use: False
     num_fiducial: 20
   feature_extractor_params:
-    type: simple
+    type: resnet14
   heads_params:
     attn_head:
       type: rnn_attn

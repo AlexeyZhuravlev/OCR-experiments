@@ -1,10 +1,10 @@
 SharedParams:
   - &vocab_path C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\AlphanumericWithPunctNoCase.txt
   - &data_root C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled 
-  - &log_dir C:\Users\User\Documents\PhD-study\Logs\street-view\stn-resnet50-blstm256-ctc-onlysynth
-  - &image_height 64
-  - &image_min_width 64
-  - &image_max_width 160
+  - &log_dir C:\Users\User\Documents\PhD-study\Logs\street-view\stn-resnet29-blstm256-ctc-onlysynth
+  - &image_height 32
+  - &image_min_width 32
+  - &image_max_width 100
 
 args:
   logdir: *log_dir
@@ -62,7 +62,7 @@ model_params:
     use: True
     num_fiducial: 20
   feature_extractor_params:
-    type: resnet50
+    type: resnet14
   heads_params:
     #attn_head:
     #  type: rnn_attn
