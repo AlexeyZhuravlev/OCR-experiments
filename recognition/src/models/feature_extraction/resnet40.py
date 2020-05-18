@@ -1,3 +1,8 @@
+"""
+    Modified resnet-50 architecture from
+    https://aaai.org/Papers/AAAI/2020GB/AAAI-HuW.7838.pdf
+"""
+
 import torch
 from torch import nn
 from .core import BaseFeatureExtractor
@@ -10,11 +15,7 @@ def get_downsample(channels_in, channels_out, stride=1):
         nn.BatchNorm2d(channels_out)
     )
 
-class GtcResNet50(BaseFeatureExtractor):
-    """
-    Modified resnet-50 architecture from
-    https://aaai.org/Papers/AAAI/2020GB/AAAI-HuW.7838.pdf
-    """
+class GtcResNet40(BaseFeatureExtractor):
     def __init__(self, c0=64, c1=64, c2=128, c3=256, c4=512):
         super().__init__()
         self._output_channels = c4 * 4
