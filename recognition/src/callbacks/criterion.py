@@ -34,7 +34,7 @@ class CtcCriterionCallback(CriterionCallback):
             multiplier=multiplier
         )
 
-        self._criterion = nn.CTCLoss(blank=CtcLabelEncoding.BLANK_TOKEN)
+        self._criterion = nn.CTCLoss(blank=CtcLabelEncoding.BLANK_TOKEN, zero_infinity=True)
 
     def on_stage_start(self, state: State):
         # Override basic behaviour of CriterionCallback
