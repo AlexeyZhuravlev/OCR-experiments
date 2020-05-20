@@ -50,13 +50,12 @@ class GtcResNet40(BaseFeatureExtractor):
             Bottleneck(c3 * 4, c4, norm_layer=nn.BatchNorm2d,
                        downsample=get_downsample(c3* 4, c4 * 4)),
             Bottleneck(c4 * 4, c4, norm_layer=nn.BatchNorm2d),
-            Bottleneck(c4 * 4, c4, norm_layer=nn.BatchNorm2d),
-            nn.AvgPool2d((4, 1), (4, 1))
+            Bottleneck(c4 * 4, c4, norm_layer=nn.BatchNorm2d)
         )
 
     @property
     def vertical_scale(self) -> int:
-        return 64
+        return 16
 
     @property
     def horizontal_scale(self) -> int:

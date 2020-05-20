@@ -11,10 +11,17 @@ class CtcPredictionHead(OcrPredictionHead):
     which can be used for ctc_loss calculation.
     """
 
-    def __init__(self, base_params, lstm_args: Dict, grad_to_features=True):
+    def __init__(self, base_params, lstm_args: Dict, pool_input_vertial=False, grad_to_features=True):
         super().__init__(**base_params)
 
-        self.rnn = nn.LSTM(self.input_height * self.input_channels, **lstm_args)
+        if pool_input_vertial:
+            self.pooling = nn.AvgPool2d((self.input_height, 1), (self.input_height, 1))
+            lstm_input_height = 1
+        else:
+            self.pooling = None
+            lstm_input_height = self.input_height
+
+        self.rnn = nn.LSTM(lstm_input_height * self.input_channels, **lstm_args)
 
         num_directions = 2 if self.rnn.bidirectional else 1
         self.linear = nn.Linear(self.rnn.hidden_size * num_directions,\
@@ -35,7 +42,10 @@ class CtcPredictionHead(OcrPredictionHead):
 
         if not self.grad_to_features:
             features = features.detach()
-
+        
+        if self.pooling:
+            features = self.pooling(features)
+        
         batch, channels, height, width = features.shape
         assert height == self.input_height
         assert channels == self.input_channels
