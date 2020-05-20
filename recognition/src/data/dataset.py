@@ -31,14 +31,19 @@ class LmdbDataset(Dataset):
         self.root = root
         self.image_format = image_format
         self.case_sensitive = case_sensitive
-        self.env = lmdb.open(root, max_readers=32, readonly=True, lock=False,
-                             readahead=False, meminit=False)
+        # We don't save env as class constructor due to picking problem with workers
+        # Save in class during first call of __getitem__
+        # See https://github.com/pytorch/vision/issues/689
+        env = lmdb.open(root, max_readers=32, readonly=True, lock=False,
+                        readahead=False, meminit=False)
 
-        if not self.env:
+        if not env:
             raise RuntimeError("cannot create lmdb from {}".format(root))
 
-        with self.env.begin(write=False) as txn:
+        with env.begin(write=False) as txn:
             self.n_samples = int(txn.get("num-samples".encode()))
+
+        self.env = None
 
     def get_all_symbols(self):
         """
@@ -59,6 +64,10 @@ class LmdbDataset(Dataset):
         return self.n_samples
 
     def __getitem__(self, index):
+        if self.env is None:
+            self.env = lmdb.open(self.root, max_readers=32, readonly=True, lock=False,
+                                 readahead=False, meminit=False)
+
         assert index <= len(self), "index range error"
         # lmbd starts indexing from 1
         index += 1

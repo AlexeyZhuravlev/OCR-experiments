@@ -6,6 +6,8 @@ from .label_encodings import FACTORY as label_encoding_factory
 from .callbacks import OcrMetricsCallback, EncodeLabelsCallback, DecodeLabelsCallback
 import albumentations as A
 import codecs
+import torch
+from catalyst.dl.utils import set_global_seed
 
 from typing import Dict, List
 
@@ -43,6 +45,30 @@ class OcrExperiment(ConfigExperiment):
                                                             image_resize_params["max_width"])
 
         return datasets
+
+    def get_loaders(self, stage: str) -> "OrderedDict[str, DataLoader]":
+        data_params_key = "data_params"
+        loader_params_key = "loaders_params"
+        worker_init_fn_key = "worker_init_fn"
+        dataset_names_key = "dataset_names"
+
+        data_params = self.stages_config[stage][data_params_key]
+        dataset_names = data_params[dataset_names_key]
+
+        if not loader_params_key in data_params:
+            data_params[loader_params_key] = {}
+        loaders_params = data_params[loader_params_key]
+        for dataset_name in dataset_names:
+            if not dataset_name in loaders_params:
+                loaders_params[dataset_name] = {}
+            dataset_loader_params = loaders_params[dataset_name]
+            dataset_loader_params[worker_init_fn_key] = self._worker_init_fn
+
+        return super().get_loaders(stage)
+
+    def _worker_init_fn(self, x):
+        # can not be lambda if we want to run num_workers > 0 on windows
+        set_global_seed(self.initial_seed + x)
 
     def get_callbacks(self, stage: str) -> "OrderedDict[Callback]":
         """
