@@ -19,12 +19,20 @@ class OcrMetricsCallback(MetricCallback):
         self.metrics.reset_counters()
 
     def on_batch_end(self, state):
+        # Don't decode labels during training for training speedup
+        if state.is_train_loader:
+            return
+
         groundtruth = state.input[self.input_key]
         recognized = state.output[self.output_key]
 
         self.metrics.add_batch(recognized, groundtruth)
 
     def on_loader_end(self, state):
+        # Don't decode labels during training for training speedup
+        if state.is_train_loader:
+            return
+
         values = self.metrics.get_metrics()
         for key, value in values.items():
             output_key = "{}.{}".format(self.prefix, key)

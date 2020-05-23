@@ -33,6 +33,10 @@ class DecodeLabelsCallback(Callback):
         self.output_key = output_key
 
     def on_batch_end(self, state):
+        # Don't decode labels during training for training speedup
+        if state.is_train_loader:
+            return
+
         target_tensor = state.output[self.input_key]
         strings = self.encoder.decode_predictions(target_tensor)
         state.output[self.output_key] = strings
