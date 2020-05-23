@@ -1,5 +1,5 @@
 from catalyst.core.callbacks.metrics import MetricCallback
-from src.utils.metrics import OcrMetrics
+from src.utils.metrics import GroupOcrMetrics
 from src.data import DataItemKeys
 
 class OcrMetricsCallback(MetricCallback):
@@ -13,7 +13,7 @@ class OcrMetricsCallback(MetricCallback):
             input_key=input_key,
             output_key=output_key)
 
-        self.metrics = OcrMetrics()
+        self.metrics = GroupOcrMetrics()
 
     def on_loader_start(self, state):
         self.metrics.reset_counters()
