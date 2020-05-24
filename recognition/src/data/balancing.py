@@ -10,8 +10,8 @@ def build_balanced_concatenation(
     and sampler object, which forms mini-epochs of total size mini_epoch_len
     using each source to get elements count proportional to corresponding weight
 
-    I.e. one might want to use balanced concatenation synthetic dataset of size 20M and real data
-    of size 50K to get mini-epochs of size 200.000 for dataloader.
+    I.e. one might want to use balanced concatenation of synthetic dataset with size 20M
+    and real data with size 50K to get mini-epochs of size 200K for dataloader.
     When he passes [(synth_dataset, 1), (real_dataset, 1)], 200.000
     and obtains mini-epochs of 100.000 random synthetic elements and 100.000 random real elements
     On next iteration new synthetic elements will be obtained (from cyclic buffer),
