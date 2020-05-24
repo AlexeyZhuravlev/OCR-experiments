@@ -3,7 +3,7 @@ from typing import List, Iterator, Tuple
 from torch.utils.data import Sampler, Dataset, ConcatDataset
 
 def build_balanced_concatenation(
-        datasets_with_weights: List[Tuple[Dataset, int]],
+        datasets_with_weights: List[Tuple[Dataset, float]],
         mini_epoch_len: int) -> Tuple[Dataset, Sampler]:
     """
     Gets list of datasets with associated weights, returns dataset concatenation

@@ -5,12 +5,22 @@ All datasets, used for training and testing to incapsulate all paths to dataset 
 import os
 from typing import List, Dict
 import numpy as np
-from torch.utils.data import ConcatDataset, Dataset, Subset
+from torch.utils.data import ConcatDataset, Dataset, Subset, Sampler
 from .dataset import LmdbDataset
+from .balancing import build_balanced_concatenation
 
 class OperationTypeKeys:
+    """
+    Different operation types on top of registered dataset,
+    which can be set in params config
+    """
+    # Split dataset into two by given ratio
     SPLIT = "split"
+    # Merge several datasets into one
     MERGE = "merge"
+    # Merge dataset and accociate sampler object which should perform
+    # balanced loading from different components
+    BALANCED_MERGE = "balanced_merge"
 
 class DatasetRegistry:
     """
@@ -21,6 +31,7 @@ class DatasetRegistry:
         self.data_root = params["rootdir"]
         self.case_sensitive = params["case_sensitive"]
         self.register = {}
+        self.samplers = {}
         self.register_all_paths(params.get("path_data", {}))
         self.register_operations_data(params.get("operations", []))
 
@@ -29,6 +40,16 @@ class DatasetRegistry:
         Returns dataset by registered name
         """
         return self.register[name]
+
+    def get_sampler(self, name: str) -> Sampler:
+        """
+        Returns specific sampler, assotiated with corresponding dataset
+        If sampler doesn't exist, returns None
+        """
+        if name in self.samplers:
+            return self.samplers[name]
+        else:
+            return None
 
     def register_all_paths(self, params: Dict):
         for key, value in params.items():
@@ -44,6 +65,8 @@ class DatasetRegistry:
             self.register_split(**kwargs)
         elif operation_type == OperationTypeKeys.MERGE:
             self.register_merge(**kwargs)
+        elif operation_type == OperationTypeKeys.BALANCED_MERGE:
+            self.register_balanced_merge(**kwargs)
         else:
             raise ValueError(operation_type)
 
@@ -81,6 +104,20 @@ class DatasetRegistry:
         merged_dataset = ConcatDataset(datasets)
 
         self._register_data_element(target, merged_dataset)
+
+    def register_balanced_merge(self, target: str, components: Dict[str, float],
+                                mini_epoch_len: int):
+        """
+        Registers balanced merge given datasets with associated weights
+        (registers both dataset and corresponding sampler in class)
+        """
+        datasets_with_weights = []
+        for name, weight in components.items():
+            datasets_with_weights.append((self.register[name], weight))
+        dataset, sampler = build_balanced_concatenation(datasets_with_weights, mini_epoch_len)
+
+        self._register_data_element(target, dataset)
+        self.samplers[target] = sampler
 
     def _get_dataset(self, relative_path):
         "Returns dataset by relative path"
