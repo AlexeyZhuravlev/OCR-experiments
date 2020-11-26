@@ -16,13 +16,19 @@ def get_downsample(channels_in, channels_out, stride=1):
     )
 
 class GtcResNet40(BaseFeatureExtractor):
-    def __init__(self, c0=64, c1=64, c2=128, c3=256, c4=512):
+    def __init__(self, initial_stride=2, c0=64, c1=64, c2=128, c3=256, c4=512):
+        """
+        initial_stride - stride applied at the first convolution,
+        might be useful to change alongside with input height;
+        Original paper proposes value 2 for input height 64
+        """
         super().__init__()
         self._output_channels = c4 * 4
+        self._initial_stride = initial_stride
 
         self.layers = nn.Sequential(
             # Root network: conv-bn-relu-maxpool
-            nn.Conv2d(3, c0, kernel_size=7, stride=2, padding=3, bias=False),
+            nn.Conv2d(3, c0, kernel_size=7, stride=initial_stride, padding=3, bias=False),
             nn.BatchNorm2d(c0),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
@@ -62,15 +68,16 @@ class GtcResNet40(BaseFeatureExtractor):
 
     @property
     def vertical_scale(self) -> int:
-        return 16
+        return self._initial_stride * 8
 
     @property
     def horizontal_scale(self) -> int:
-        return 4
+        return self._initial_stride * 2
 
     @property
     def output_channels(self) -> int:
         return self._output_channels
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.layers(x)
+        result = self.layers(x)
+        return result
