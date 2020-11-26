@@ -46,6 +46,8 @@ class OcrRunner(SupervisedRunner):
             labels = batch[SequenceLabelEncoding.LABELS_KEY]
             # transpose to (sequence_length, batch_size) - heads expect this shape
             labels = labels.transpose(1, 0)
+            # Replace PAD token with EOS token for teacher forcing, so embedding layer works correctly with it
+            labels[labels == SequenceLabelEncoding.PAD_TOKEN] = SequenceLabelEncoding.EOS_TOKEN
             return {
                 AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY: labels.to(self.device)
             }
