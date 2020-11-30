@@ -19,3 +19,20 @@ class BidirectionalLSTM(nn.Module):
         recurrent, _ = self.rnn(input)
         output = self.linear(recurrent)
         return output
+
+class SqueezedBiLSTM(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers=1):
+        super(SqueezedBiLSTM, self).__init__()
+        self.lstms = nn.ModuleList(
+            BidirectionalLSTM(input_size, hidden_size, hidden_size)
+        )
+        for _ in range(num_layers - 1):
+            self.lstms.append(
+                BidirectionalLSTM(hidden_size, hidden_size, hidden_size)
+            )
+
+    def forward(self, x):
+        for layer in self.lstms:
+            x = layer(x)
+
+        return x
