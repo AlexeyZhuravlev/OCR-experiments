@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset, DataLoader
-from balancing import build_balanced_concatenation
+from .balancing import build_balanced_concatenation
 from collections import Counter
 
 class DummyDataset(Dataset):
