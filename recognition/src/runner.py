@@ -11,6 +11,8 @@ class AdditionalDataKeys:
     HEADS_ADDITIONAL_DATA = "heads_additional"
     # Additional key, which are added to model input when it has attention head
     TEACHER_FORCING_LABELS_KEY = "teacher_forcing_labels"
+    # Target sequence length to be predicted
+    TARGET_LENGTH_KEY = "target_length"
 
 class OcrRunner(SupervisedRunner):
     """
@@ -53,5 +55,6 @@ class OcrRunner(SupervisedRunner):
             }
         else:
             return {
-                AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY: None
+                AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY: None,
+                AdditionalDataKeys.TARGET_LENGTH_KEY: batch[SequenceLabelEncoding.LABELS_KEY].size(1)
             }

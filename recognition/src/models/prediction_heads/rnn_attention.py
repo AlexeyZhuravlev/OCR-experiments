@@ -114,9 +114,8 @@ class RnnAttentionHead(OcrPredictionHead):
 
         return features_input_size
 
-    def _init_decoder(self, input_size, hidden_size, embedding_size, max_num_steps):
+    def _init_decoder(self, input_size, hidden_size, embedding_size):
         self.decoder = RnnAttentionDecoder(input_size, hidden_size, self.vocab_size, embedding_size)
-        self.max_num_steps = max_num_steps
 
         if self.encoder_mode == EncoderMode.INIT_DECODER:
             self.encoder_decoder_hidden_linear = nn.Linear(self._get_encoder_output_size(),
@@ -140,7 +139,7 @@ class RnnAttentionHead(OcrPredictionHead):
         teacher_forcing_labels = data[AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY]
 
         if teacher_forcing_labels is None:
-            num_steps = self.max_num_steps
+            num_steps = data[AdditionalDataKeys.TARGET_LENGTH_KEY]
         else:
             num_steps = teacher_forcing_labels.shape[0]
 

@@ -1,7 +1,7 @@
 SharedParams:
   - &vocab_path C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\AlphanumericWithPunctNoCase.txt
   - &data_root C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled 
-  - &log_dir C:\Users\User\Documents\PhD-study\Logs\street-view\stn-resnet29-blstm256-ctc-onlysynth
+  - &log_dir C:\Users\User\Documents\PhD-study\Logs\street-view\resnet14-32-100-blstm-256-ctc-with-attn
   - &image_height 32
   - &image_min_width 32
   - &image_max_width 100
@@ -19,7 +19,9 @@ data_registry:
   rootdir: *data_root
   case_sensitive: False
   path_data:
-    MJ: Synthetic/MJ
+    MJ_train: Synthetic/MJ/MJ_train
+    MJ_valid: Synthetic/MJ/MJ_valid
+    MJ_test: Synthetic/MJ/MJ_test
     ST_AN: Synthetic/ST_AN
     ST_SPE: Synthetic/ST_spe
     SYNTHADD: Synthetic/SynthAdd
@@ -38,11 +40,14 @@ data_registry:
     SVT_TEST: Real/Test/SVT
     SVTP: Real/Test/SVTP
     CUTE80: Real/Test/CUTE80
+    IC15_1811_TEST: Real/Test/IC15_1811
   operations:
     - type: merge
       target: SYNTHETIC
       components:
-        - MJ
+        - MJ_train
+        - MJ_valid
+        - MJ_test
         - ST_AN
         - ST_SPE
         - SYNTHADD
@@ -54,6 +59,9 @@ data_registry:
         - IIIT5K_TRAIN
         - SVT_TRAIN
 
+runner_params:
+  device: cuda
+
 model_params:
   model: MultiHeadOcrModel
   input_height: *image_height
@@ -63,23 +71,25 @@ model_params:
     num_fiducial: 20
   feature_extractor_params:
     type: resnet14
+    initial_pool: 2
   heads_params:
-    #attn_head:
-    #  type: rnn_attn
-    #  encoder_params:
-    #    mode: none
-    #    args: {}
-         #hidden_size: 128
-         #bidirectional: True
-    #  decoder_params:
-    #    hidden_size: 128
-    #    embedding_size: 128
-    #    max_num_steps: 25
+    attn_head:
+      type: rnn_attn
+      encoder_params:
+        mode: pass
+        args:
+          hidden_size: 128
+          num_layers: 1
+          bidirectional: True
+      decoder_params:
+        hidden_size: 256
+        embedding_size: 128
     ctc_head:
       type: ctc
       grad_to_features: True
       lstm_args:
         hidden_size: 256
+        num_layers: 1
         bidirectional: True
 
 stages: 
@@ -95,37 +105,38 @@ stages:
   optimizer_params:
     optimizer: Adam
     lr: 0.001
-    weight_decay: 0.0001
+    weight_decay: 0
 
   scheduler_params:
-    scheduler: StepLR
-    step_size: 30
-    gamma: 0.1
+    scheduler: MultiStepLR
+    milestones: [100, 150]
+    gamma: 0.34
 
   train_stage: # Network training stage
     data_params:
-      batch_size: 64
+      batch_size: 200
+      num_workers: 1
       dataset_names:
         train: SYNTHETIC
         valid: REAL_TRAIN
-      samplers_params: 
+      samplers_params:
         train:
-          sampler: MiniEpochSampler 
-          data_len: 17139350
-          mini_epoch_len: 300000
-          drop_last: False
+          sampler: MiniEpochSampler
+          data_len: 17139318
+          mini_epoch_len: 400000
+          drop_last: True
           shuffle: per_epoch
     
     state_params:
-      num_epochs: 60
-      main_metric: ctc_head.fragment_acc
+      num_epochs: 200
+      main_metric: ctc_head.alphanum.fragment_acc
       minimize_metric: False
       valid_loader: valid
 
     callbacks_params:
-      #ce_loss:
-      #  callback: CrossEntropyCriterionCallback
-      #  head_key: attn_head
+      ce_loss:
+        callback: CrossEntropyCriterionCallback
+        head_key: attn_head
       ctc_loss:
         callback: CtcCriterionCallback
         head_key: ctc_head
@@ -133,7 +144,7 @@ stages:
         callback: MetricAggregationCallback
         prefix: total_loss
         metrics:
-          #- attn_head.loss
+          - attn_head.loss
           - ctc_head.loss
         mode: sum
       optimizer:
@@ -147,15 +158,16 @@ stages:
     data_params:
       batch_size: 1
       dataset_names:
-        IIIT: IIIT5K_TEST
-        SVT: SVT_TEST
-        IC03: IC03_TEST
-        IC13: IC13_TEST
-        IC15: IC15_TEST
-        SVTP: SVTP
-        CUTE80: CUTE80
+        IIIT_infer: IIIT5K_TEST
+        SVT_infer: SVT_TEST
+        IC03_infer: IC03_TEST
+        IC13_infer: IC13_TEST
+        IC15_infer: IC15_TEST
+        IC15_1811_infer: IC15_1811_TEST
+        SVTP_infer: SVTP
+        CUTE80_infer: CUTE80
     
-    state_params: 
+    state_params:
       num_epochs: 1
 
     callbacks_params:
