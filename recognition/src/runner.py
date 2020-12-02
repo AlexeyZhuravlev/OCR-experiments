@@ -20,9 +20,10 @@ class OcrRunner(SupervisedRunner):
     Handles additional logic about which data is passed to model
     """
 
-    def __init__(self, model=None, device=None):
+    def __init__(self, model=None, device=None, attention_max_length=25):
         super().__init__(model=model, device=device,
                          input_key=None, output_key=None, input_target_key=None)
+        self.attention_max_length = attention_max_length
 
     def forward(self, batch: Mapping[str, Any], **kwargs) -> Mapping[str, Any]:
         model_input = {
@@ -54,7 +55,12 @@ class OcrRunner(SupervisedRunner):
                 AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY: labels.to(self.device)
             }
         else:
+            if SequenceLabelEncoding.LABELS_KEY in batch:
+                target_length = batch[SequenceLabelEncoding.LABELS_KEY].size(1)
+            else:
+                target_length = self.attention_max_length
+            
             return {
                 AdditionalDataKeys.TEACHER_FORCING_LABELS_KEY: None,
-                AdditionalDataKeys.TARGET_LENGTH_KEY: batch[SequenceLabelEncoding.LABELS_KEY].size(1)
+                AdditionalDataKeys.TARGET_LENGTH_KEY: target_length
             }

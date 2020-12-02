@@ -56,6 +56,9 @@ class RnnAttentionDecoder(nn.Module):
             prev_hidden = current_hidden
             if teacher_forcing_labels is None:
                 prev_token = current_logits.argmax(axis=-1)
+                # Stop decoding with EOS symbol predicted when BS=1 (inference)
+                if batch_size == 1 and prev_token.item() == self.eos_token:
+                    break
             else:
                 prev_token = teacher_forcing_labels[i]
 
