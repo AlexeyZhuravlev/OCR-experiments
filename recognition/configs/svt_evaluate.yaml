@@ -1,7 +1,7 @@
 SharedParams:
   - &vocab_path C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\AlphanumericWithPunctNoCase.txt
   - &data_root C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled 
-  - &log_dir C:\Users\User\Documents\PhD-study\Logs\street-view\strided-mobile-32-100-GTC
+  - &log_dir C:\Users\User\Documents\PhD-study\Logs\street-view\resnet14-32-100-blstm-256-ctc-with-attn
   - &image_height 32
   - &image_min_width 32
   - &image_max_width 100
@@ -36,11 +36,11 @@ data_registry:
     IC03_TEST: Real/Test/IC03
     IC13_TEST: Real/Test/IC13
     IC15_TEST: Real/Test/IC15
+    IC15_1811_TEST: Real/Test/IC15_1811
     IIIT5K_TEST: Real/Test/IIIT5K
     SVT_TEST: Real/Test/SVT
     SVTP: Real/Test/SVTP
     CUTE80: Real/Test/CUTE80
-    IC15_1811_TEST: Real/Test/IC15_1811
   operations:
     - type: merge
       target: SYNTHETIC
@@ -59,10 +59,6 @@ data_registry:
         - IIIT5K_TRAIN
         - SVT_TRAIN
 
-runner_params:
-  device: cuda
-  attention_max_length: 25
-
 model_params:
   model: MultiHeadOcrModel
   input_height: *image_height
@@ -71,7 +67,8 @@ model_params:
     use: True
     num_fiducial: 20
   feature_extractor_params:
-    type: custom_mobile
+    type: resnet14
+    initial_pool: 2
   heads_params:
     attn_head:
       type: rnn_attn
@@ -86,7 +83,7 @@ model_params:
         embedding_size: 128
     ctc_head:
       type: ctc
-      grad_to_features: False
+      grad_to_features: True
       lstm_args:
         hidden_size: 256
         num_layers: 1
@@ -101,58 +98,6 @@ stages:
       min_width: *image_min_width
       max_width: *image_max_width
     num_workers: 0
-
-  optimizer_params:
-    optimizer: Adam
-    lr: 0.001
-    weight_decay: 0
-
-  scheduler_params:
-    scheduler: MultiStepLR
-    milestones: [100, 150]
-    gamma: 0.34
-
-  train_stage: # Network training stage
-    data_params:
-      batch_size: 160
-      num_workers: 1
-      dataset_names:
-        train: SYNTHETIC
-        valid: REAL_TRAIN
-      samplers_params:
-        train:
-          sampler: MiniEpochSampler
-          data_len: 17139318
-          mini_epoch_len: 320000
-          drop_last: True
-          shuffle: per_epoch
-    
-    state_params:
-      num_epochs: 200
-      main_metric: ctc_head.alphanum.fragment_acc
-      minimize_metric: False
-      valid_loader: valid
-
-    callbacks_params:
-      ce_loss:
-        callback: CrossEntropyCriterionCallback
-        head_key: attn_head
-      ctc_loss:
-        callback: CtcCriterionCallback
-        head_key: ctc_head
-      total_loss:
-        callback: MetricAggregationCallback
-        prefix: total_loss
-        metrics:
-          - attn_head.loss
-          - ctc_head.loss
-        mode: sum
-      optimizer:
-        callback: OptimizerCallback
-        metric_key: total_loss
-      scheduler:
-        callback: SchedulerCallback
-        mode: epoch
 
   infer_stage: # Inference stage: final testing on main SVT benchmarks
     data_params:
@@ -173,7 +118,6 @@ stages:
     callbacks_params:
       load_best_checkpoint:
         callback: CheckpointCallback
-        #load_on_stage_start: best. # Should be added in Catalyst 20.6 and later
       metric_manager:
         callback: MetricManagerCallback
       timer:

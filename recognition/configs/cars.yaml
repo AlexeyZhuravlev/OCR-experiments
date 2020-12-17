@@ -2,9 +2,9 @@ SharedParams:
   - &vocab_path C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled\Sample\Vocab.txt
   - &data_root C:\Users\User\Documents\PhD-study\OCR-TextRecognition-Data\Compiled 
   - &log_dir C:\Users\User\Documents\PhD-study\Logs\car-plates\check
-  - &image_height 64
-  - &image_min_width 256
-  - &image_max_width 256
+  - &image_height 32
+  - &image_min_width 32
+  - &image_max_width 100
 
 args:
   logdir: *log_dir
@@ -38,23 +38,22 @@ model_params:
     num_fiducial: 20
   feature_extractor_params:
     type: resnet14
+    initial_pool: 2
   heads_params:
     attn_head:
       type: rnn_attn
       encoder_params:
         mode: none
         args: {}
-         #hidden_size: 128
-         #bidirectional: True
       decoder_params:
-        hidden_size: 128
+        hidden_size: 256
         embedding_size: 128
         max_num_steps: 10
     ctc_head:
       type: ctc
       grad_to_features: True
       lstm_args:
-        hidden_size: 128
+        hidden_size: 256
         bidirectional: True
 
 stages: 

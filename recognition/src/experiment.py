@@ -46,6 +46,7 @@ class OcrExperiment(ConfigExperiment):
 
         return datasets
 
+    # TODO: fully-override this function to use custom associated samplers from data_registry
     def get_loaders(self, stage: str) -> "OrderedDict[str, DataLoader]":
         data_params_key = "data_params"
         loader_params_key = "loaders_params"
